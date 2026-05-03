@@ -40,6 +40,11 @@ pnpm exec prisma studio                        # GUI de la base de datos
 pnpm exec prisma generate                      # regenerar cliente tras editar schema
 pnpm exec prisma format                        # formatear schema.prisma
 pnpm exec prisma dev                           # Postgres local efímero (alternativa a Neon)
+pnpm db:seed                                   # ejecutar prisma/seed.ts (upsertea ADMIN_EMAIL)
+
+# Auth.js — generar AUTH_SECRET (cualquiera de las dos)
+pnpm dlx auth secret                           # método oficial Auth.js v5
+[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 
 # Stripe webhooks en local (necesario para Fase 3+)
 stripe listen --forward-to localhost:3000/api/webhooks/stripe
@@ -61,7 +66,9 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 
 ## Autorización
 
-- Gating por rol en `middleware.ts` (`/admin/*` requiere `ADMIN`).
+- **Sesión JWT** (no DB sessions). El rol se persiste en el token tras el primer login y en cada `update`. Si cambias el rol de un usuario en DB, su JWT no refleja el cambio hasta que el token rote (24 h por defecto).
+- **Edge middleware** (`middleware.ts`) usa `auth.config.ts` (sin adapter Prisma) para gating sin tocar DB.
+- **Defense in depth**: además del middleware, cada layout server-side (`src/app/admin/layout.tsx`) revalida la sesión y rol con `auth()`.
 - Acceso a contenido por `Enrollment`. Helper `canAccessLesson(userId, lessonId)` en `src/lib/access.ts` (Fase 4).
 - Tras refund (webhook `charge.refunded`): borrar `Enrollment` correspondiente.
 
@@ -72,7 +79,11 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 | `prisma/schema.prisma` | Modelo de datos |
 | `src/lib/db.ts` | Cliente Prisma singleton |
 | `src/lib/env.ts` | Variables de entorno validadas |
-| `src/lib/auth.ts` | Configuración Auth.js (Fase 1) |
+| `src/lib/auth.config.ts` | Auth.js config edge-safe (sin adapter, usado por middleware) |
+| `src/lib/auth.ts` | Auth.js completo: handlers, signIn/signOut, adapter Prisma |
+| `src/types/next-auth.d.ts` | Augmentación de tipos: `session.user.role` |
+| `src/app/api/auth/[...nextauth]/route.ts` | Route handler de Auth.js |
+| `prisma/seed.ts` | Seed de admin (lee `ADMIN_EMAIL` del env) |
 | `src/lib/stripe.ts` | Cliente Stripe + helpers (Fase 3) |
 | `src/lib/access.ts` | Helpers de autorización (Fase 4) |
 | `src/app/api/webhooks/stripe/route.ts` | Receptor de eventos Stripe (Fase 3) |
