@@ -29,6 +29,9 @@ export default async function AdminLayout({
             <Link href="/admin" className="text-neutral-600 hover:text-neutral-900">
               Inicio
             </Link>
+            <Link href="/admin/courses" className="text-neutral-600 hover:text-neutral-900">
+              Cursos
+            </Link>
             <Link href="/dashboard" className="text-neutral-600 hover:text-neutral-900">
               Salir del admin
             </Link>
