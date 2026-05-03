@@ -33,7 +33,7 @@ features:
 - **Dominio**: `bienvenidoatuplaza.com` (aún sin apuntar a Vercel)
 - **Repo**: `web-cursos-celeste` en GitHub
 - **Despliegue**: producción en `web-cursos-celeste.vercel.app`
-- **Fase actual**: Fase 2a completada. Admin CRUD de cursos (sin uploads). Próximo: Fase 2b — subida real de portada con Cloudflare R2.
+- **Fase actual**: Fase 2 completada. Admin CRUD completo de cursos y lecciones, drag-and-drop, subida directa de portadas a R2 (pendiente de configurar la cuenta Cloudflare). Próximo: Fase 3 — Stripe Checkout.
 
 ## Mapa rápido
 
@@ -46,3 +46,5 @@ features:
 | [Fase 0](/fases/fase-0-setup) | Qué se hizo en el setup inicial |
 | [Fase 1](/fases/fase-1-auth) | Auth.js + magic link + roles |
 | [Fase 2a](/fases/fase-2a-courses) | Admin CRUD de cursos (sin uploads) |
+| [Fase 2b](/fases/fase-2b-r2-uploads) | R2 + subida directa de portadas |
+| [Fase 2c](/fases/fase-2c-lessons) | Lecciones + drag-and-drop |

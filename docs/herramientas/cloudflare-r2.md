@@ -38,6 +38,46 @@ R2 es S3-compatible. Usamos `@aws-sdk/client-s3` apuntando al endpoint específi
 https://<ACCOUNT_ID>.r2.cloudflarestorage.com
 ```
 
+En este proyecto el cliente vive en `src/lib/storage.ts` con tres helpers:
+
+- `isStorageConfigured()` — true cuando las 4 env vars están definidas. La UI usa esto para esconder el upload si R2 no está activo.
+- `createUploadUrl({ key, contentType })` — devuelve una URL `PUT` firmada (5 min) que el navegador usa para subir directo.
+- `buildCoverKey(filename)` — genera una key segura (`covers/<ts>-<rand>-<slug>.<ext>`).
+
+## CORS — paso fácil de olvidar
+
+R2 tiene política CORS por bucket. Sin esto, el navegador **rechaza** las subidas con un error de preflight. Configuración mínima:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "https://web-cursos-celeste.vercel.app",
+      "https://bienvenidoatuplaza.com"
+    ],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["Content-Type"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+Se pega en R2 → Bucket → Settings → CORS Policy.
+
+## URL pública vs URL firmada
+
+R2 expone los objetos por defecto en `https://<accountId>.r2.cloudflarestorage.com/<bucket>/<key>` pero esa URL **requiere autenticación**.
+
+Para servir archivos públicos (portadas que se ven en el catálogo) hay dos opciones:
+
+- **R2.dev subdomain** (gratis, dominio `pub-xxx.r2.dev`).
+- **Custom domain** (apuntas un subdominio tuyo, p. ej. `assets.bienvenidoatuplaza.com`).
+
+Cualquiera de las dos, pones la URL base en `R2_PUBLIC_URL` y el código construye `${R2_PUBLIC_URL}/<key>` para el `coverUrl` que guardamos en DB.
+
+Para archivos protegidos (PDFs solo accesibles si el alumno tiene `Enrollment`), no se sirve público — se generan URLs firmadas en el momento (Fase 4).
+
 ## Alternativas que valoramos
 
 - **Supabase Storage**: simple, integrado. Egress no es gratis ilimitadamente.
