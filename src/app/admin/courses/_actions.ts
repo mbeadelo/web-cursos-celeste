@@ -6,6 +6,11 @@ import type { ZodError } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { CourseInputSchema, type CourseInput } from "@/lib/validations/course";
+import {
+  isStorageConfigured,
+  buildCoverKey,
+  createUploadUrl,
+} from "@/lib/storage";
 
 type ActionResult =
   | { ok: true }
@@ -26,8 +31,12 @@ export async function createCourse(raw: CourseInput): Promise<ActionResult> {
     return { ok: false, error: "Datos no válidos", fieldErrors: flattenErrors(parsed.error) };
   }
 
+  let created;
   try {
-    await db.course.create({ data: parsed.data });
+    created = await db.course.create({
+      data: parsed.data,
+      select: { id: true },
+    });
   } catch (err: unknown) {
     if (isUniqueConstraint(err, "slug")) {
       return { ok: false, error: "Ese slug ya existe. Usa otro." };
@@ -36,7 +45,8 @@ export async function createCourse(raw: CourseInput): Promise<ActionResult> {
   }
 
   revalidatePath("/admin/courses");
-  redirect("/admin/courses");
+  // Redirect to the edit page so the admin can immediately add lessons.
+  redirect(`/admin/courses/${created.id}`);
 }
 
 export async function updateCourse(
@@ -61,7 +71,7 @@ export async function updateCourse(
 
   revalidatePath("/admin/courses");
   revalidatePath(`/admin/courses/${id}`);
-  redirect("/admin/courses");
+  return { ok: true };
 }
 
 export async function togglePublishCourse(id: string): Promise<void> {
@@ -81,6 +91,40 @@ export async function deleteCourse(id: string): Promise<void> {
   await ensureAdmin();
   await db.course.delete({ where: { id } });
   revalidatePath("/admin/courses");
+}
+
+const ALLOWED_COVER_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/gif",
+]);
+
+type CoverUploadResult =
+  | { ok: true; uploadUrl: string; publicUrl: string; key: string }
+  | { ok: false; error: string };
+
+export async function requestCoverUploadUrl(input: {
+  filename: string;
+  contentType: string;
+}): Promise<CoverUploadResult> {
+  await ensureAdmin();
+  if (!isStorageConfigured()) {
+    return { ok: false, error: "R2 no está configurado en este entorno." };
+  }
+  if (!ALLOWED_COVER_TYPES.has(input.contentType)) {
+    return { ok: false, error: "Formato no soportado. Usa JPG, PNG, WebP, AVIF o GIF." };
+  }
+  if (!input.filename || input.filename.length > 200) {
+    return { ok: false, error: "Nombre de archivo inválido." };
+  }
+  const key = buildCoverKey(input.filename);
+  const { uploadUrl, publicUrl } = await createUploadUrl({
+    key,
+    contentType: input.contentType,
+  });
+  return { ok: true, uploadUrl, publicUrl, key };
 }
 
 function flattenErrors(err: ZodError): Record<string, string[]> {

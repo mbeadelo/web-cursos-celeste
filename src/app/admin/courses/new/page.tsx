@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CourseForm } from "../_form";
 import { createCourse } from "../_actions";
+import { isStorageConfigured } from "@/lib/storage";
 
 export const metadata: Metadata = { title: "Nuevo curso" };
 
 export default function NewCoursePage() {
+  const storageEnabled = isStorageConfigured();
   return (
     <main className="px-6 py-12">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -16,7 +18,11 @@ export default function NewCoursePage() {
           </Link>
         </header>
 
-        <CourseForm action={createCourse} submitLabel="Crear curso" />
+        <CourseForm
+          action={createCourse}
+          submitLabel="Crear curso"
+          storageEnabled={storageEnabled}
+        />
       </div>
     </main>
   );

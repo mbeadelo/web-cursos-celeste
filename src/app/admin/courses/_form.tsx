@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { CoverUpload } from "./_cover-upload";
 
 // Schema for the form input (before transform). priceCents is a string in the
 // form (input type=number returns string in HTML), we coerce.
@@ -49,10 +50,12 @@ type Props = {
     published: boolean;
   }) => Promise<ActionResult | void>;
   submitLabel: string;
+  storageEnabled: boolean;
 };
 
-export function CourseForm({ initial, action, submitLabel }: Props) {
+export function CourseForm({ initial, action, submitLabel, storageEnabled }: Props) {
   const [serverError, setServerError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const {
     register,
@@ -73,9 +76,11 @@ export function CourseForm({ initial, action, submitLabel }: Props) {
   });
 
   const published = watch("published");
+  const coverUrl = watch("coverUrl");
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
+    setSaved(false);
     const priceCents = Math.round(Number(values.priceEuros) * 100);
     const result = await action({
       title: values.title,
@@ -87,8 +92,11 @@ export function CourseForm({ initial, action, submitLabel }: Props) {
     });
     if (result && result.ok === false) {
       setServerError(result.error);
+    } else if (result && result.ok === true) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
     }
-    // On success the action redirects; nothing to do here.
+    // If the action redirected, this code never runs (the throw bubbles up).
   }
 
   return (
@@ -124,11 +132,19 @@ export function CourseForm({ initial, action, submitLabel }: Props) {
       </Field>
 
       <Field
-        label="URL de portada"
-        hint="Pega un enlace a una imagen. En Fase 2b se sustituirá por subida directa."
+        label="Portada"
+        hint={
+          storageEnabled
+            ? "Sube una imagen o pega una URL externa."
+            : "Pega un enlace a una imagen. La subida directa requiere R2 configurado."
+        }
         error={errors.coverUrl?.message}
       >
-        <Input {...register("coverUrl")} placeholder="https://..." />
+        <CoverUpload
+          value={coverUrl ?? ""}
+          onChange={(v) => setValue("coverUrl", v, { shouldDirty: true })}
+          storageEnabled={storageEnabled}
+        />
       </Field>
 
       <div className="flex items-center justify-between rounded-md border border-neutral-200 p-4">
@@ -148,6 +164,12 @@ export function CourseForm({ initial, action, submitLabel }: Props) {
       {serverError && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">
           {serverError}
+        </p>
+      )}
+
+      {saved && (
+        <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3">
+          Cambios guardados.
         </p>
       )}
 
