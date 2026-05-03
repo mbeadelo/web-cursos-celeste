@@ -118,6 +118,7 @@ Auth.js v5 requiere splitting cuando usas un adapter no-edge:
 3. **Vercel no permite vars Sensitive en entorno Development** — Development está pensado para `vercel env pull`, los secretos sensibles no se pueden recuperar. Solución: configurar solo Production + Preview, usar `.env` local.
 4. **`pages.verifyRequest` en Auth.js v5 beta.31** — el redirect tras enviar el email va a la URL por defecto `/api/auth/verify-request` en lugar de a nuestra `/login/verify`. Cosmético; el flujo funciona. Pendiente revisar en una iteración futura.
 5. **Top-level `await` en scripts CJS** — `tsx` carga `.ts` como CJS si `package.json` no es ESM. Solución: envolver en función `main()`.
+6. **Comillas en `EMAIL_FROM` de Vercel** — pegar el valor con comillas (`"..."`) hace que las comillas se guarden literalmente en el runtime, y Resend rechaza el `from` con un "Server error". En Vercel los valores van **sin comillas**. En `.env` local sí van con comillas porque dotenv las quita.
 
 ## Verificación
 

@@ -113,6 +113,8 @@ Ejemplo: `feat: añadir checkout con Stripe`.
 | `.env` | Valores reales locales (DEV) | ❌ NO (gitignored) |
 | Vercel env vars | Valores reales de producción | gestionado en su panel |
 
+> ⚠️ **Gotcha Vercel**: en el panel de Vercel, las env vars **se guardan literales sin recortar**. Si pegas `"Bienvenido a tu plaza <noreply@x.com>"` (con comillas), las comillas pasan al runtime y rompen el envío. En `.env` local sí van con comillas — dotenv las quita al cargar. Resumen: **comillas en `.env`, sin comillas en Vercel**.
+
 Cuando añadas una nueva variable:
 
 1. Añádela a `src/lib/env.ts` (validación con Zod).
