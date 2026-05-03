@@ -22,6 +22,7 @@ export default defineConfig({
         items: [
           { text: "Fase 0 — Setup", link: "/fases/fase-0-setup" },
           { text: "Fase 1 — Auth", link: "/fases/fase-1-auth" },
+          { text: "Fase 2a — Courses CRUD", link: "/fases/fase-2a-courses" },
         ],
       },
     ],
@@ -65,6 +66,7 @@ export default defineConfig({
           items: [
             { text: "Fase 0 — Setup", link: "/fases/fase-0-setup" },
             { text: "Fase 1 — Auth", link: "/fases/fase-1-auth" },
+            { text: "Fase 2a — Courses CRUD", link: "/fases/fase-2a-courses" },
           ],
         },
       ],

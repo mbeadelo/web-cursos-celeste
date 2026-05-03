@@ -9,7 +9,9 @@ Suena raro, pero es genial:
 - Pides un `<Button>` → el CLI mete el archivo `src/components/ui/button.tsx` en tu repo.
 - Tú **eres dueño** del código. Puedes editarlo, romperlo, adaptarlo a tu marca.
 - No hay versionado de librería ni breaking changes. Solo es código tuyo.
-- Internamente usa **Radix UI** (primitivas accesibles sin estilo) + **Tailwind** (estilos).
+- Internamente usa **Base UI** (primitivas accesibles, sucesor de Radix UI mantenido por el mismo equipo) + **Tailwind** (estilos).
+
+> Nota: en versiones de shadcn anteriores a Tailwind 4, las primitivas eran de Radix. La versión actual usa Base UI. La diferencia en tu código es pequeña pero real: `asChild` (Radix) → `render` prop (Base UI).
 
 Esto resuelve el típico drama de "quiero cambiar X de la librería pero el equipo solo expone estos props". Aquí: edita el archivo y ya.
 
@@ -30,17 +32,34 @@ Todo construido sobre Radix + estilizado con Tailwind, configurable por CSS vari
 ## Cómo se añade un componente
 
 ```powershell
-pnpm dlx shadcn@latest add button
-pnpm dlx shadcn@latest add dialog
+# Inicialización (una sola vez)
+pnpm dlx shadcn@latest init --yes --defaults
+
+# Añadir componentes (puedes pasar varios a la vez)
+pnpm dlx shadcn@latest add button input label dialog --yes
 ```
 
-El CLI mete el archivo en `src/components/ui/`. Lo importas:
+El CLI mete cada archivo en `src/components/ui/`. Lo importas:
 
 ```tsx
 import { Button } from "@/components/ui/button";
 ```
 
 Si lo necesitas distinto, **editas el archivo**. Es tuyo.
+
+## Patrón "renderizar como otro elemento" (antes asChild)
+
+Cuando quieres que un Button se renderice como un `<Link>` (manteniendo el estilo del Button pero la semántica de un enlace), usa la prop `render`:
+
+```tsx
+// Botón que en realidad es un enlace de Next
+<Button render={<Link href="/admin/courses/new" />}>Nuevo curso</Button>
+
+// Trigger de Dialog que parece un botón ghost
+<DialogTrigger render={<Button variant="ghost" size="sm">Eliminar</Button>}>
+  Eliminar
+</DialogTrigger>
+```
 
 ## Alternativas que valoramos
 
