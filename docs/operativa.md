@@ -51,6 +51,23 @@ pnpm exec prisma format
 
 # GUI para inspeccionar la base de datos
 pnpm exec prisma studio
+
+# Sembrar el primer admin (lee ADMIN_EMAIL del .env)
+pnpm db:seed
+
+# Listar VerificationToken (útil al depurar magic links)
+pnpm exec tsx scripts/check-tokens.ts
+```
+
+## Auth.js — generar AUTH_SECRET
+
+```powershell
+# Opción A: CLI oficial (escribe directamente en .env)
+pnpm dlx auth secret
+# Si genera "BETTER_AUTH_SECRET=", renómbrala a "AUTH_SECRET=" — el valor es válido
+
+# Opción B: PowerShell 5.1 compatible
+$bytes = New-Object byte[] 32; (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes); [Convert]::ToBase64String($bytes)
 ```
 
 ## Stripe (a partir de Fase 3)

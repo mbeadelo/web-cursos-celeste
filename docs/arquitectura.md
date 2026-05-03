@@ -97,9 +97,9 @@ Resultado: los enlaces no se pueden compartir (caducan), y sin matrícula no hay
 ### 7. Auth (Auth.js v5)
 
 - Único método inicial: **magic link** por email. Sin contraseñas.
-- Sesiones guardadas en DB (tabla `Session`).
-- Roles: `STUDENT` (default) y `ADMIN`. El rol vive en la DB, no en el token.
-- Middleware de Next protege `/admin/*` y `/dashboard/*`.
+- Sesiones por **JWT** (cookie HttpOnly firmada con `AUTH_SECRET`). La tabla `Session` queda sin uso, pero el adapter Prisma sigue persistiendo `User`, `Account` y `VerificationToken`.
+- Roles: `STUDENT` (default) y `ADMIN`. El rol se lee de `User.role` en el primer sign-in y se persiste en el JWT.
+- Defense in depth: middleware (edge, sin DB) + revalidación con `auth()` en cada layout protegido (`/admin/layout.tsx`).
 
 ## Flujo de una compra completa (end-to-end)
 

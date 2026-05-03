@@ -32,8 +32,8 @@ features:
 - **Marca**: Bienvenido a tu plaza
 - **Dominio**: `bienvenidoatuplaza.com` (aún sin apuntar a Vercel)
 - **Repo**: `web-cursos-celeste` en GitHub
-- **Despliegue**: Vercel — preview activo
-- **Fase actual**: Fase 0 completada. Lista para Fase 1 (Auth + DB).
+- **Despliegue**: producción en `web-cursos-celeste.vercel.app`
+- **Fase actual**: Fase 1 completada. Login con magic link en producción. Lista para Fase 2 (admin CRUD de cursos).
 
 ## Mapa rápido
 
@@ -44,3 +44,4 @@ features:
 | [Decisiones](/decisiones) | Por qué elegimos X en lugar de Y |
 | [Operativa](/operativa) | Comandos para desarrollar día a día |
 | [Fase 0](/fases/fase-0-setup) | Qué se hizo en el setup inicial |
+| [Fase 1](/fases/fase-1-auth) | Auth.js + magic link + roles |
