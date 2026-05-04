@@ -98,6 +98,21 @@ export async function createUploadUrl(opts: {
  * Build a key for a cover image. Uses a random suffix to avoid collisions.
  */
 export function buildCoverKey(filename: string): string {
+  return buildKey("covers", filename);
+}
+
+/**
+ * Build a key for a lesson file (PDF). Stored under `lesson-files/<lessonId>/`
+ * so files are obviously associated with their lesson when listing the bucket.
+ */
+export function buildLessonFileKey(opts: {
+  lessonId: string;
+  filename: string;
+}): string {
+  return buildKey(`lesson-files/${opts.lessonId}`, opts.filename);
+}
+
+function buildKey(prefix: string, filename: string): string {
   const ext = (filename.match(/\.[a-z0-9]+$/i)?.[0] ?? "").toLowerCase();
   const safe = filename
     .replace(/\.[a-z0-9]+$/i, "")
@@ -107,5 +122,5 @@ export function buildCoverKey(filename: string): string {
     .slice(0, 40);
   const ts = Date.now();
   const rand = Math.random().toString(36).slice(2, 8);
-  return `covers/${ts}-${rand}-${safe}${ext}`;
+  return `${prefix}/${ts}-${rand}-${safe}${ext}`;
 }

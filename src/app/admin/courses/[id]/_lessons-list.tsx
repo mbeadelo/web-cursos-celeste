@@ -52,9 +52,13 @@ const typeLabels: Record<LessonType, string> = {
 export function LessonsList({
   courseId,
   initialLessons,
+  storageEnabled,
+  muxConfigured,
 }: {
   courseId: string;
   initialLessons: Lesson[];
+  storageEnabled: boolean;
+  muxConfigured: boolean;
 }) {
   // useOptimistic: shows the dragged-to order immediately, then resets to
   // the server-truth (initialLessons) once the server action revalidates.
@@ -128,13 +132,21 @@ export function LessonsList({
         </DndContext>
       )}
 
-      <LessonDialog courseId={courseId} open={addOpen} onOpenChange={setAddOpen} />
+      <LessonDialog
+        courseId={courseId}
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        storageEnabled={storageEnabled}
+        muxConfigured={muxConfigured}
+      />
 
       <LessonDialog
         courseId={courseId}
         open={!!editing}
         onOpenChange={(o) => !o && setEditing(null)}
         lesson={editing ?? undefined}
+        storageEnabled={storageEnabled}
+        muxConfigured={muxConfigured}
       />
 
       <DeleteLessonDialog

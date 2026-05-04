@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { LessonInputSchema, type LessonInput } from "@/lib/validations/lesson";
+import {
+  isStorageConfigured,
+  buildLessonFileKey,
+  createUploadUrl,
+} from "@/lib/storage";
 
 type ActionResult =
   | { ok: true }
@@ -164,4 +169,50 @@ function flattenErrors(err: ZodError): Record<string, string[]> {
     out[path]!.push(issue.message);
   }
   return out;
+}
+
+const ALLOWED_PDF_TYPES = new Set(["application/pdf"]);
+
+type LessonFileUploadResult =
+  | { ok: true; uploadUrl: string; key: string }
+  | { ok: false; error: string };
+
+/**
+ * Issue a signed PUT URL for the admin to upload a PDF directly to R2 from
+ * the browser. Returns the resulting object key — the admin form then saves
+ * it on the Lesson via updateLesson.
+ */
+export async function requestLessonFileUploadUrl(input: {
+  lessonId: string;
+  filename: string;
+  contentType: string;
+}): Promise<LessonFileUploadResult> {
+  await ensureAdmin();
+  if (!isStorageConfigured()) {
+    return { ok: false, error: "R2 no está configurado en este entorno." };
+  }
+  if (!ALLOWED_PDF_TYPES.has(input.contentType)) {
+    return { ok: false, error: "Solo se admiten archivos PDF." };
+  }
+  if (!input.filename || input.filename.length > 200) {
+    return { ok: false, error: "Nombre de archivo inválido." };
+  }
+  const lesson = await db.lesson.findUnique({
+    where: { id: input.lessonId },
+    select: { id: true, type: true },
+  });
+  if (!lesson) return { ok: false, error: "Lección no encontrada." };
+  if (lesson.type !== "PDF") {
+    return { ok: false, error: "La lección no es de tipo PDF." };
+  }
+
+  const key = buildLessonFileKey({
+    lessonId: lesson.id,
+    filename: input.filename,
+  });
+  const { uploadUrl } = await createUploadUrl({
+    key,
+    contentType: input.contentType,
+  });
+  return { ok: true, uploadUrl, key };
 }

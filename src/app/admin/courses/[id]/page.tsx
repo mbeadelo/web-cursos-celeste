@@ -6,6 +6,7 @@ import { CourseForm } from "../_form";
 import { updateCourse } from "../_actions";
 import { LessonsList } from "./_lessons-list";
 import { isStorageConfigured } from "@/lib/storage";
+import { isMuxConfigured } from "@/lib/mux";
 
 export const metadata: Metadata = { title: "Editar curso" };
 
@@ -74,7 +75,12 @@ export default async function EditCoursePage({
         </section>
 
         <section className="space-y-4 pt-6 border-t border-neutral-200">
-          <LessonsList courseId={course.id} initialLessons={course.lessons} />
+          <LessonsList
+            courseId={course.id}
+            initialLessons={course.lessons}
+            storageEnabled={isStorageConfigured()}
+            muxConfigured={isMuxConfigured()}
+          />
         </section>
       </div>
     </main>

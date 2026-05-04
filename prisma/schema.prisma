@@ -45,6 +45,7 @@ model User {
 
   enrollments Enrollment[]
   orders      Order[]
+  articles    Article[]
   // Auth.js relations
   accounts    Account[]
   sessions    Session[]
@@ -74,7 +75,10 @@ model Lesson {
   order         Int
   title         String
   type          LessonType
-  // VIDEO: Mux playback id
+  // VIDEO: Mux ids. uploadId is the Direct Upload reference (set when admin
+  // requests an upload URL); assetId + playbackId are filled by Mux webhooks
+  // once the asset finishes processing.
+  muxUploadId   String?    @unique
   muxAssetId    String?
   muxPlaybackId String?
   // PDF: object key in R2/S3
@@ -125,6 +129,45 @@ model StripeEvent {
   id          String   @id // Stripe event id (evt_...)
   type        String
   processedAt DateTime @default(now())
+}
+
+// Long-form articles for SEO and content marketing. Body is sanitized HTML
+// produced by the TipTap editor; render server-side via dangerouslySetInnerHTML
+// after the sanitizer in lib/html.ts has stripped unsafe nodes/attrs.
+model Article {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  excerpt     String    @db.Text
+  body        String    @db.Text
+  coverUrl    String?
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+  authorId    String?
+  author      User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([published, publishedAt])
+}
+
+// Editable site copy. Key uses dot notation (e.g. "home.hero.title").
+// The app reads via getContent() with a default fallback so missing keys
+// don't break the UI; admin can edit via /admin/contenido.
+model SiteContent {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+// Legal documents (privacidad, terminos, cookies). Slug is fixed by the
+// LEGAL_SLUGS list in lib/legal.ts. Body is HTML (TipTap). If a row is
+// missing, the public route serves a default template from lib/legal.ts.
+model LegalDocument {
+  slug      String   @id
+  title     String
+  body      String   @db.Text
+  updatedAt DateTime @updatedAt
 }
 
 // ─── Auth.js (NextAuth v5) tables ───

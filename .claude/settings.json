@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem*)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(git status*)",
+      "PowerShell(git log*)",
+      "PowerShell(git diff*)",
+      "PowerShell(git show*)",
+      "PowerShell(git branch*)",
+      "PowerShell(git blame*)",
+      "PowerShell(git rev-parse*)",
+      "PowerShell(node --version)",
+      "PowerShell(node -v)",
+      "PowerShell(pnpm --version)",
+      "PowerShell(volta --version)",
+      "PowerShell(pnpm exec tsc --noEmit*)",
+      "PowerShell(pnpm lint*)"
+    ]
+  }
+}
