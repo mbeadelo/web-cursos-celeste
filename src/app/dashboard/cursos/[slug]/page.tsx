@@ -297,13 +297,15 @@ function LessonBody({
     );
   }
 
-  // TEXT
+  // TEXT — body is HTML from TipTap (or plain text in older lessons; both
+  // render fine via dangerouslySetInnerHTML since TipTap output is whitelisted).
   return (
     <article className="rounded-2xl bg-white border border-neutral-200 p-6 md:p-10">
       {lesson.body ? (
-        <div className="prose prose-neutral max-w-none whitespace-pre-line leading-relaxed text-neutral-800">
-          {lesson.body}
-        </div>
+        <div
+          className="prose prose-neutral max-w-none prose-a:text-brand-celeste-deep hover:prose-a:text-brand-magenta"
+          dangerouslySetInnerHTML={{ __html: lesson.body }}
+        />
       ) : (
         <p className="text-neutral-500 italic">
           Esta lección aún no tiene texto.

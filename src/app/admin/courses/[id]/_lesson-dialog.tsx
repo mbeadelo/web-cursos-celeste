@@ -7,7 +7,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { RichEditor } from "@/components/rich-editor";
 import {
   Dialog,
   DialogContent,
@@ -105,6 +105,7 @@ export function LessonDialog({
   const type = watch("type");
   const fileKey = watch("fileKey");
   const muxPlaybackId = watch("muxPlaybackId");
+  const body = watch("body");
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
@@ -254,12 +255,11 @@ export function LessonDialog({
 
           {type === "TEXT" && (
             <div className="space-y-1.5">
-              <Label htmlFor="lesson-body">Contenido</Label>
-              <Textarea
-                id="lesson-body"
-                rows={8}
-                {...register("body")}
-                placeholder="Texto de la lección..."
+              <Label>Contenido</Label>
+              <RichEditor
+                value={body ?? ""}
+                onChange={(html) => setValue("body", html, { shouldDirty: true })}
+                placeholder="Texto de la lección…"
               />
             </div>
           )}

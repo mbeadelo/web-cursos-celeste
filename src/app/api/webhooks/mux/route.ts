@@ -55,9 +55,12 @@ export async function POST(req: Request) {
       case "video.asset.ready":
         await handleAssetReady(event.data);
         break;
+      case "video.asset.errored":
+        await handleAssetErrored(event.data);
+        break;
       default:
-        // Other events ignored. Mux sends quite a few that we don't care about
-        // (asset.created, asset.errored, upload.created, etc.).
+        // Other events ignored. Mux sends asset.created, upload.created, etc.
+        // that don't change anything we care about.
         break;
     }
   } catch (err) {
@@ -128,6 +131,49 @@ async function handleAssetReady(data: Record<string, unknown> | undefined) {
       .catch((err) => {
         console.warn(
           "[mux webhook] no lesson for passthrough",
+          passthrough,
+          err
+        );
+      });
+  }
+}
+
+async function handleAssetErrored(
+  data: Record<string, unknown> | undefined
+) {
+  if (!data) return;
+  const assetId = typeof data.id === "string" ? data.id : null;
+  const passthrough =
+    typeof data.passthrough === "string" ? data.passthrough : null;
+  const errors = data.errors;
+
+  // Mux asset failed to encode. Clear the Lesson's Mux ids so the admin sees
+  // the lesson as "no video yet" and can re-upload. The original error
+  // surfaces in Vercel logs (and Sentry once configured).
+  console.error(
+    "[mux webhook] video.asset.errored",
+    JSON.stringify({ assetId, passthrough, errors })
+  );
+
+  if (assetId) {
+    const updated = await db.lesson
+      .updateMany({
+        where: { muxAssetId: assetId },
+        data: { muxAssetId: null, muxUploadId: null },
+      })
+      .catch(() => ({ count: 0 }));
+    if (updated.count > 0) return;
+  }
+
+  if (passthrough) {
+    await db.lesson
+      .update({
+        where: { id: passthrough },
+        data: { muxAssetId: null, muxUploadId: null },
+      })
+      .catch((err) => {
+        console.warn(
+          "[mux webhook] no lesson for errored passthrough",
           passthrough,
           err
         );

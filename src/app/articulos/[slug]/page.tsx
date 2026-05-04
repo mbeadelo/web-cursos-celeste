@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
 import { env } from "@/lib/env";
+import { estimateReadingTimeMinutes } from "@/lib/utils";
 
 const dateFormatter = new Intl.DateTimeFormat("es-ES", {
   dateStyle: "long",
@@ -101,7 +102,8 @@ export default async function ArticlePage({
           <header className="space-y-4">
             {article.publishedAt && (
               <p className="text-xs uppercase tracking-[0.2em] text-brand-magenta-deep font-semibold">
-                {dateFormatter.format(article.publishedAt)} · {authorName}
+                {dateFormatter.format(article.publishedAt)} · {authorName} ·{" "}
+                {estimateReadingTimeMinutes(article.body)} min lectura
               </p>
             )}
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-[1.1]">

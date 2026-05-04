@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
 import { Card, CardContent } from "@/components/ui/card";
+import { estimateReadingTimeMinutes } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Blog",
@@ -26,6 +27,7 @@ export default async function ArticlesIndex() {
       excerpt: true,
       coverUrl: true,
       publishedAt: true,
+      body: true, // for reading time estimate
     },
   });
 
@@ -84,6 +86,8 @@ export default async function ArticlesIndex() {
                         {a.publishedAt
                           ? dateFormatter.format(a.publishedAt)
                           : "Borrador"}
+                        {" · "}
+                        {estimateReadingTimeMinutes(a.body)} min lectura
                       </p>
                       <h2 className="text-xl md:text-2xl font-bold tracking-tight leading-tight">
                         {a.title}
