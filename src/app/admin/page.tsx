@@ -2,9 +2,10 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 
 export default async function AdminHome() {
-  const [coursesTotal, coursesPublished] = await Promise.all([
+  const [coursesTotal, coursesPublished, enrollmentsTotal] = await Promise.all([
     db.course.count(),
     db.course.count({ where: { published: true } }),
+    db.enrollment.count(),
   ]);
 
   return (
@@ -26,10 +27,16 @@ export default async function AdminHome() {
             <p className="text-3xl font-semibold mt-1">{coursesTotal}</p>
             <p className="text-xs text-neutral-500 mt-2">{coursesPublished} publicados</p>
           </Link>
-          <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-6">
-            <p className="text-sm text-neutral-600">Alumnos</p>
-            <p className="text-xs text-neutral-500 mt-1">Disponible en una fase posterior.</p>
-          </div>
+          <Link
+            href="/admin/enrollments"
+            className="rounded-lg border border-neutral-200 bg-white p-6 hover:border-neutral-400 transition"
+          >
+            <p className="text-sm text-neutral-600">Alumnos enrolados</p>
+            <p className="text-3xl font-semibold mt-1">{enrollmentsTotal}</p>
+            <p className="text-xs text-neutral-500 mt-2">
+              Gestionar accesos manualmente
+            </p>
+          </Link>
           <div className="rounded-lg border border-dashed border-neutral-300 bg-white p-6">
             <p className="text-sm text-neutral-600">Ventas</p>
             <p className="text-xs text-neutral-500 mt-1">Disponible cuando integremos Stripe.</p>

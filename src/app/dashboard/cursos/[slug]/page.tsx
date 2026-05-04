@@ -1,0 +1,314 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { headers } from "next/headers";
+import { notFound, redirect } from "next/navigation";
+import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { canAccessCourse } from "@/lib/access";
+import { env } from "@/lib/env";
+import { VideoPlayer } from "@/components/video-player";
+
+const lessonTypeLabel: Record<"VIDEO" | "PDF" | "TEXT", string> = {
+  VIDEO: "Vídeo",
+  PDF: "PDF",
+  TEXT: "Texto",
+};
+
+function lessonTypeIcon(type: "VIDEO" | "PDF" | "TEXT") {
+  if (type === "VIDEO") return "▶";
+  if (type === "PDF") return "📄";
+  return "✎";
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const course = await db.course.findUnique({
+    where: { slug },
+    select: { title: true },
+  });
+  return { title: course?.title ?? "Curso" };
+}
+
+export default async function StudentCoursePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ l?: string }>;
+}) {
+  const session = await auth();
+  if (!session) redirect("/login");
+
+  const { slug } = await params;
+  const { l: lessonId } = await searchParams;
+
+  // Watermark inputs: email + best-effort IP from request headers.
+  const hdrs = await headers();
+  const watermarkIp =
+    hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    hdrs.get("x-real-ip") ??
+    "—";
+  const watermarkEmail = session.user.email ?? "—";
+
+  const course = await db.course.findUnique({
+    where: { slug },
+    include: {
+      lessons: {
+        orderBy: { order: "asc" },
+        select: {
+          id: true,
+          order: true,
+          title: true,
+          type: true,
+          muxPlaybackId: true,
+          fileKey: true,
+          body: true,
+        },
+      },
+    },
+  });
+  if (!course) notFound();
+
+  const allowed = await canAccessCourse(session.user.id, course.id);
+  if (!allowed) redirect("/dashboard");
+
+  // Pick active lesson: query param if valid, else first lesson.
+  const active =
+    course.lessons.find((l) => l.id === lessonId) ?? course.lessons[0] ?? null;
+
+  const activeIndex = active
+    ? course.lessons.findIndex((l) => l.id === active.id)
+    : -1;
+  const prev = activeIndex > 0 ? course.lessons[activeIndex - 1] : null;
+  const next =
+    activeIndex >= 0 && activeIndex < course.lessons.length - 1
+      ? course.lessons[activeIndex + 1]
+      : null;
+
+  return (
+    <main className="flex-1">
+      <div className="border-b border-neutral-200 bg-white">
+        <div className="max-w-6xl mx-auto px-6 py-5">
+          <Link
+            href="/dashboard"
+            className="text-sm text-neutral-600 hover:text-brand-celeste-deep transition"
+          >
+            ← Mis cursos
+          </Link>
+          <div className="mt-3 flex flex-wrap items-baseline justify-between gap-3">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              {course.title}
+            </h1>
+            <p className="text-sm text-neutral-500">
+              {course.lessons.length} lección
+              {course.lessons.length === 1 ? "" : "es"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8">
+        <aside className="lg:sticky lg:top-6 lg:self-start space-y-2">
+          <p className="text-xs uppercase tracking-wide text-neutral-500 px-2">
+            Contenido
+          </p>
+          {course.lessons.length === 0 ? (
+            <p className="text-sm text-neutral-500 px-2">
+              Aún no hay lecciones publicadas.
+            </p>
+          ) : (
+            <ol className="space-y-1">
+              {course.lessons.map((l) => {
+                const isActive = active?.id === l.id;
+                return (
+                  <li key={l.id}>
+                    <Link
+                      href={`/dashboard/cursos/${course.slug}?l=${l.id}`}
+                      className={
+                        "block rounded-lg px-3 py-2.5 transition border " +
+                        (isActive
+                          ? "bg-brand-celeste/10 border-brand-celeste/40 text-brand-celeste-deep"
+                          : "bg-white border-transparent hover:border-neutral-200 hover:bg-neutral-50")
+                      }
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-xs tabular-nums text-neutral-400 mt-0.5 w-5 shrink-0">
+                          {l.order}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={
+                              "text-sm leading-snug " +
+                              (isActive ? "font-semibold" : "font-medium")
+                            }
+                          >
+                            {l.title}
+                          </p>
+                          <p className="text-[11px] uppercase tracking-wide text-neutral-500 mt-0.5">
+                            <span className="mr-1">{lessonTypeIcon(l.type)}</span>
+                            {lessonTypeLabel[l.type]}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </aside>
+
+        <section className="min-w-0 space-y-6">
+          {!active ? (
+            <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-12 text-center">
+              <p className="text-neutral-600">
+                Este curso aún no tiene contenido publicado.
+              </p>
+            </div>
+          ) : (
+            <>
+              <header className="space-y-2">
+                <p className="text-xs uppercase tracking-wide text-brand-magenta-deep font-semibold">
+                  Lección {active.order} · {lessonTypeLabel[active.type]}
+                </p>
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
+                  {active.title}
+                </h2>
+              </header>
+
+              <LessonBody
+                lesson={active}
+                watermarkEmail={watermarkEmail}
+                watermarkIp={watermarkIp}
+              />
+
+              <footer className="flex items-center justify-between gap-3 pt-4 border-t border-neutral-200">
+                {prev ? (
+                  <Link
+                    href={`/dashboard/cursos/${course.slug}?l=${prev.id}`}
+                    className="text-sm text-neutral-700 hover:text-brand-celeste-deep transition"
+                  >
+                    ← {prev.title}
+                  </Link>
+                ) : (
+                  <span />
+                )}
+                {next ? (
+                  <Link
+                    href={`/dashboard/cursos/${course.slug}?l=${next.id}`}
+                    className="text-sm font-medium text-brand-celeste-deep hover:text-brand-magenta transition"
+                  >
+                    {next.title} →
+                  </Link>
+                ) : (
+                  <span className="text-sm text-neutral-500">
+                    Última lección
+                  </span>
+                )}
+              </footer>
+            </>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
+
+type Lesson = {
+  id: string;
+  order: number;
+  title: string;
+  type: "VIDEO" | "PDF" | "TEXT";
+  muxPlaybackId: string | null;
+  fileKey: string | null;
+  body: string | null;
+};
+
+function LessonBody({
+  lesson,
+  watermarkEmail,
+  watermarkIp,
+}: {
+  lesson: Lesson;
+  watermarkEmail: string;
+  watermarkIp: string;
+}) {
+  if (lesson.type === "VIDEO") {
+    if (lesson.muxPlaybackId) {
+      return (
+        <VideoPlayer
+          playbackId={lesson.muxPlaybackId}
+          watermarkEmail={watermarkEmail}
+          watermarkIp={watermarkIp}
+          title={lesson.title}
+        />
+      );
+    }
+    return (
+      <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-neutral-900 to-neutral-700 aspect-video flex items-center justify-center text-center p-8">
+        <div className="space-y-2 text-white">
+          <p className="text-4xl">▶</p>
+          <p className="font-medium">Vídeo en preparación</p>
+          <p className="text-sm text-white/70 max-w-md">
+            El admin todavía no ha subido el vídeo de esta lección o aún se
+            está procesando en Mux.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (lesson.type === "PDF") {
+    if (!lesson.fileKey || !env.R2_PUBLIC_URL) {
+      return (
+        <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-10 text-center">
+          <p className="text-neutral-700 font-medium">PDF pendiente de subir</p>
+          <p className="text-sm text-neutral-500 mt-1">
+            El admin aún no ha asociado un archivo a esta lección.
+          </p>
+        </div>
+      );
+    }
+    const url = `${env.R2_PUBLIC_URL.replace(/\/$/, "")}/${lesson.fileKey}`;
+    return (
+      <div className="rounded-2xl bg-gradient-to-br from-brand-celeste/10 to-brand-magenta/10 p-1">
+        <div className="rounded-[14px] bg-white p-8 md:p-10 text-center space-y-4">
+          <p className="text-5xl">📄</p>
+          <div className="space-y-1">
+            <p className="font-semibold text-lg">Material descargable</p>
+            <p className="text-sm text-neutral-600">
+              Abre o descarga el PDF para seguir la lección.
+            </p>
+          </div>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block rounded-full bg-brand-celeste text-brand-celeste-foreground px-6 py-3 font-medium hover:bg-brand-celeste-deep transition"
+          >
+            Abrir PDF
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // TEXT
+  return (
+    <article className="rounded-2xl bg-white border border-neutral-200 p-6 md:p-10">
+      {lesson.body ? (
+        <div className="prose prose-neutral max-w-none whitespace-pre-line leading-relaxed text-neutral-800">
+          {lesson.body}
+        </div>
+      ) : (
+        <p className="text-neutral-500 italic">
+          Esta lección aún no tiene texto.
+        </p>
+      )}
+    </article>
+  );
+}
