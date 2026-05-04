@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -8,8 +9,14 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
+  --color-brand-celeste: var(--brand-celeste);
+  --color-brand-celeste-deep: var(--brand-celeste-deep);
+  --color-brand-celeste-foreground: var(--brand-celeste-foreground);
+  --color-brand-magenta: var(--brand-magenta);
+  --color-brand-magenta-deep: var(--brand-magenta-deep);
+  --color-brand-magenta-foreground: var(--brand-magenta-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -51,6 +58,16 @@
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+  /* ── Brand palette (ajusta hex en estos 6 valores) ──
+     azul celeste: hue 225 (entre cyan y azul puro)
+     morado-rosa : hue 325 (entre violeta y magenta)
+     Si quieres un tono concreto, sustituye el oklch() por hex (#xxxxxx). */
+  --brand-celeste: oklch(0.74 0.13 225);
+  --brand-celeste-deep: oklch(0.62 0.16 230);
+  --brand-celeste-foreground: oklch(1 0 0);
+  --brand-magenta: oklch(0.66 0.24 325);
+  --brand-magenta-deep: oklch(0.55 0.27 325);
+  --brand-magenta-foreground: oklch(1 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);

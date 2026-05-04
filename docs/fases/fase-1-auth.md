@@ -1,8 +1,8 @@
 # Fase 1 — Auth y modelo base
 
-> **Objetivo**: alumnos pueden registrarse y entrar con magic link; el admin marcado en DB puede acceder a `/admin`.
+> **Objetivo**: alumnos entran con magic link; el admin marcado en DB puede acceder a `/admin`.
 
-> **Estado**: ✅ Completada.
+> **Estado**: ✅ Completada. Modificada después con [registro cerrado](#registro-cerrado-decisión-2026-05-04-sesión-3) — ahora **no hay autoregistro**.
 
 ## Resumen del flujo
 
@@ -152,6 +152,47 @@ Mismo flujo en `https://web-cursos-celeste.vercel.app/`. Variables de entorno co
 curl -I https://web-cursos-celeste.vercel.app/dashboard
 # 307 redirect to /login?callbackUrl=...
 ```
+
+## Registro cerrado (decisión 2026-05-04 sesión 3)
+
+Modificación importante sobre el comportamiento de Auth.js por defecto.
+
+### Por qué
+
+El producto no es un marketplace abierto. La cliente real (la prometida del dev) tiene una cartera concreta de alumnos y no le interesa que cualquier visitante pueda crearse cuenta. Razones:
+
+- **Ruido en la base de datos**: cada visitante curioso crearía un `User` + `VerificationToken` aunque no compre nada. La DB y los logs de Resend se ensucian rápido.
+- **Coste**: Resend cobra emails enviados; abrir registro a desconocidos invita a abuso.
+- **Modelo mental**: el alumno entra en la plaza después de comprar (Stripe) o tras invitación manual del admin. No "antes".
+
+### Cómo se aplica
+
+Doble barrera (defense in depth):
+
+1. **Server action `loginAction`** (`src/app/login/page.tsx`): antes de llamar a `signIn("resend", ...)` consultamos `db.user.findUnique({ where: { email } })`. Si no existe (excepción: `ADMIN_EMAIL`), redirigimos a `/login?error=not-registered` con mensaje "este email no está registrado, ¿has comprado un curso?".
+2. **Adapter Prisma envuelto** (`src/lib/auth.ts`): `lockedAdapter.createUser` lanza error si el email no es `ADMIN_EMAIL`. Esto cierra el agujero de cualquier intento que pegue directo a `/api/auth/signin/resend`. Si llega a este punto el usuario verá un error 500 — aceptable porque ese path no se debería alcanzar nunca por flujo normal.
+3. **`signIn` callback** en `auth.ts`: chequeo redundante adicional. Devuelve `false` si el email no está en `User`.
+
+### Vías legítimas de creación de `User`
+
+| Vía | Cuándo |
+|---|---|
+| `prisma/seed.ts` | Bootstrap inicial del admin (`ADMIN_EMAIL`) |
+| `lockedAdapter.createUser` (con email == ADMIN_EMAIL) | Recovery si la DB se vacía y se intenta loguear como admin |
+| Stripe webhook (Fase 3, pendiente) | Tras `checkout.session.completed`: `db.user.upsert` por email + `db.enrollment.create` |
+| Admin manual enrollment (Fase 3, pendiente) | Admin escribe email → `db.user.upsert` + crea Enrollment |
+
+Tanto Stripe como admin usan `db.user.upsert/create` directos, **no pasan por el adapter** — el adapter solo se invoca dentro del flujo Auth.js.
+
+### Implicaciones de UX
+
+- `/login` muestra un mensaje claro cuando el email no está registrado, redirigiendo al catálogo.
+- La home **no muestra "Crear cuenta"** — solo "Acceder" (para alumnos existentes) y "Ver cursos".
+- `/cursos/[slug]` para anónimos muestra un caption: "No necesitas crear cuenta antes — la generamos al completar la compra".
+
+### Riesgo cubierto
+
+Antes de este cambio, cualquier visitante de `https://web-cursos-celeste.vercel.app/login` podía generarse una cuenta sin haber comprado nada. Con el cambio, la única ventana abierta es Stripe (que requiere KYC y cobro real) y el admin (autenticado).
 
 ## Commits
 

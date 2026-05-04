@@ -2,7 +2,7 @@
 
 > **Objetivo**: el admin puede subir un archivo de imagen como portada del curso y el navegador lo manda directo a R2 sin pasar por nuestro servidor.
 
-> **Estado**: ✅ Código listo. Pendiente de que crees la cuenta de Cloudflare y configures las env vars para activarlo en producción.
+> **Estado**: ✅ Activo en local y en producción (configurado 2026-05-04 sesión 2).
 
 ## Diseño
 
@@ -84,30 +84,39 @@ R2 expone tu bucket por defecto en `https://<accountId>.r2.cloudflarestorage.com
 
 Si no la pones, `publicUrl` apunta a la URL no-pública y la imagen no se cargará para usuarios anónimos. La portada funciona en el admin (aunque tenga sesión) pero no en el catálogo.
 
-## Lo que TÚ tienes que hacer para activarlo
+## Pasos de configuración (ejecutados 2026-05-04)
 
-1. **Crear cuenta en cloudflare.com** (login con GitHub).
-2. **Activar R2** (dashboard → R2 → Get Started). Te pide tarjeta para el plan gratuito (10 GB).
-3. **Crear un bucket**:
-   - Nombre: `bienvenidoatuplaza-assets`
-   - Location: `Eastern Europe (EEUR)` o `Western Europe (WEUR)`.
-4. **Crear un API token**:
-   - R2 → Manage R2 API Tokens → Create API Token
-   - Permisos: `Object Read & Write` para el bucket creado
-   - Anota: `Access Key ID`, `Secret Access Key`, `Account ID`
-5. **(Opcional pero recomendado)** activar dominio público:
-   - Bucket → Settings → Public access → Connect Custom Domain o R2.dev subdomain.
-6. **Añadir al `.env` local** y a Vercel (Production + Preview):
+### 1. Crear cuenta y activar R2
 
-```env
-R2_ACCOUNT_ID="..."
-R2_ACCESS_KEY_ID="..."
-R2_SECRET_ACCESS_KEY="..."
-R2_BUCKET="bienvenidoatuplaza-assets"
-R2_PUBLIC_URL="https://pub-xxxx.r2.dev"   # si usas r2.dev
-```
+- Sign-up en [cloudflare.com](https://dash.cloudflare.com/sign-up) (login con GitHub recomendado).
+- Saltar el paso "add a site" (no necesitamos meter el dominio en Cloudflare; el DNS lo gestiona Webempresa).
+- En el sidebar: **R2 Object Storage** → activar.
+- Cloudflare pide tarjeta aunque sea gratis (10 GB/mes free).
 
-7. **(Importante)** configurar **CORS** en el bucket para permitir PUT desde tu dominio:
+### 2. Crear el bucket
+
+- R2 → **Create bucket**.
+- Nombre: `bienvenidoatuplaza-assets`.
+- Location: **Automatic** (o WEUR/EEUR si fuerzas).
+- Default storage class: **Standard**.
+
+### 3. API token
+
+- En R2 hay dos sitios donde se ven los tokens. Vamos a **R2 → "Manage R2 API Tokens"** (botón arriba a la derecha).
+- **Create API token**.
+- **Tipo**: **Account API Token** (NO User API Token — un token de usuario muere si te quitan del equipo).
+- **Permissions**: `Object Read & Write` (no uses Admin).
+- **Specify bucket(s)**: "Apply to specific buckets only" → `bienvenidoatuplaza-assets`. Scope mínimo.
+- **TTL**: Forever (sin caducidad para no rotar a mano).
+- **Client IP filtering**: vacío (Vercel usa IPs dinámicas).
+- ⚠️ La pantalla siguiente muestra los secrets **una sola vez**. Guarda en Bitwarden:
+  - `Access Key ID` → `R2_ACCESS_KEY_ID`
+  - `Secret Access Key` → `R2_SECRET_ACCESS_KEY`
+  - `Endpoint` (URL `https://<algo>.r2.cloudflarestorage.com`) → de aquí sacas `R2_ACCOUNT_ID` (el subdominio antes de `.r2.cloudflarestorage.com`).
+
+### 4. CORS
+
+Bucket → **Settings** → **CORS Policy** → Add CORS policy:
 
 ```json
 [
@@ -115,18 +124,49 @@ R2_PUBLIC_URL="https://pub-xxxx.r2.dev"   # si usas r2.dev
     "AllowedOrigins": [
       "http://localhost:3000",
       "https://web-cursos-celeste.vercel.app",
-      "https://bienvenidoatuplaza.com"
+      "https://bienvenidoatuplaza.com",
+      "https://www.bienvenidoatuplaza.com"
     ],
-    "AllowedMethods": ["PUT"],
-    "AllowedHeaders": ["Content-Type"],
-    "MaxAgeSeconds": 3000
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
   }
 ]
 ```
 
-R2 → Bucket → Settings → CORS Policy.
+Notas:
+- `GET` + `HEAD` permiten que el navegador renderice imágenes desde cualquier `<img>`.
+- `PUT` permite la subida directa firmada.
+- **R2 no soporta wildcards en orígenes** — los preview deploys de Vercel (`*.vercel.app` con git branch en URL) no entran. Si en algún momento necesitas subir desde una preview, añádelo puntualmente.
 
-8. Redeployar Vercel (o esperar al siguiente push).
+### 5. Public Development URL
+
+Bucket → **Settings** → **Public Development URL** → **Enable**.
+
+- Cloudflare avisa de que la URL es rate-limited y "not recommended for production". Para MVP es válido — al lanzar producción real migramos a `assets.bienvenidoatuplaza.com` (custom domain).
+- El diálogo te pide **escribir literalmente la palabra `allow`** (en minúsculas) para confirmar. No es un campo de URL — es solo confirmación tipo GitHub-delete.
+- Cloudflare genera automáticamente la URL `https://pub-XXXXXXXX.r2.dev`. Cópiala → será `R2_PUBLIC_URL`.
+
+### 6. Env vars
+
+En `.env` local **y** en Vercel (Production + Preview, NO Development):
+
+```env
+R2_ACCOUNT_ID=abc123def456
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET=bienvenidoatuplaza-assets
+R2_PUBLIC_URL=https://pub-XXXXXXXX.r2.dev
+```
+
+⚠️ **Sin comillas, sin barra final en `R2_PUBLIC_URL`**, sin espacios sobrantes. Vercel guarda los valores literales — un par de comillas accidental rompió `EMAIL_FROM` en Fase 1, no repitamos.
+
+Para `R2_ACCESS_KEY_ID` y `R2_SECRET_ACCESS_KEY` marca **Sensitive** en Vercel para que no aparezcan en el dashboard luego.
+
+### 7. Redeploy
+
+Tras añadir las env vars en Vercel, **Redeploy** desde el dashboard (o haz un push trivial). Las env vars solo se aplican en deploys nuevos.
 
 ## Verificación
 
@@ -138,8 +178,27 @@ Tras configurar las env vars:
 - Cuando termina, la URL se rellena y aparece el preview.
 - Guarda el curso. La portada se persiste en `Course.coverUrl`.
 
-## Commit
+## Gotchas que nos comimos en la configuración real
+
+1. **"Type `allow` to confirm"** al activar el subdomain público. No es un campo de URL custom domain; es solo confirmación. Si te aparece "tengo que dar yo una URL", probablemente confundiste la sección con "Custom Domains".
+2. **Dos secciones distintas para serving público**: `Public Development URL` (gratis, rate-limited, automática) y `Custom Domains` (requiere DNS en Cloudflare). Para MVP, la primera.
+3. **Comillas en Vercel** vuelven a morder: pegar `"https://pub-xxx.r2.dev"` con comillas mete las comillas en el valor y rompe la app entera. Pega solo el valor.
+4. **CORS sin wildcards**: Cloudflare R2 no acepta `*.vercel.app`. Añade los orígenes explícitos.
+5. **Lista de cursos vs. detalle**: la miniatura de la cover **solo se renderiza en la página de edición** (`/admin/courses/[id]`), no en el listado de admin. Si subes y no ves miniatura, asegúrate de estar en la página correcta.
+6. **Warning de `pg` sobre SSL modes** apareció en runtime al cargar `/admin/courses`: el driver `pg` deprecará el alias `sslmode=require` → `verify-full`. Cambiar `?sslmode=require` por `?sslmode=verify-full` en `DATABASE_URL`.
+
+## Decisión de seguridad: bucket único público
+
+Por ahora todo va a un solo bucket configurado público. Esto está bien para covers de cursos (queremos que sean visibles a usuarios anónimos en el catálogo) pero **no para los PDFs** (Fase 4) — esos exigirán signed URLs con expiración. Cuando llegue Fase 4 valorar:
+
+- Opción A: usar el mismo bucket pero con prefijos `covers/` (público vía R2.dev) y `pdfs/` (acceso solo via signed URLs generadas por la app).
+- Opción B: crear un segundo bucket privado (`bienvenidoatuplaza-private`) para PDFs.
+
+Opción B es más limpia (separación de blast radius) pero opción A simplifica configuración. Decisión pendiente.
+
+## Commits
 
 ```
 de8b5f2  feat(admin): phase 2b + 2c - lessons CRUD with dnd reorder + R2 cover upload
+6f93fa5  docs: phase 2b + 2c retrospectives, R2 setup guide
 ```
