@@ -34,16 +34,26 @@ export default async function EditArticlePage({
           >
             ← Volver a artículos
           </Link>
-          {article.published && (
+          <div className="flex items-center gap-4">
             <Link
-              href={`/articulos/${article.slug}`}
+              href={`/admin/articulos/${article.id}/preview`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-brand-celeste-deep hover:text-brand-magenta"
+              className="text-sm text-neutral-700 hover:text-brand-celeste-deep"
             >
-              Ver publicado ↗
+              Vista previa ↗
             </Link>
-          )}
+            {article.published && (
+              <Link
+                href={`/articulos/${article.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-brand-celeste-deep hover:text-brand-magenta"
+              >
+                Ver publicado ↗
+              </Link>
+            )}
+          </div>
         </div>
         <h1 className="text-2xl font-semibold">{article.title}</h1>
         <ArticleForm

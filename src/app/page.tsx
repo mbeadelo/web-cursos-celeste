@@ -14,6 +14,24 @@ export default async function Home() {
   const aboutEyebrow = pickContent(content, "about.eyebrow");
   const aboutTitle = pickContent(content, "about.title");
   const aboutBody = pickContent(content, "about.body");
+  const stats = [
+    {
+      number: pickContent(content, "home.stats.s1.number"),
+      label: pickContent(content, "home.stats.s1.label"),
+    },
+    {
+      number: pickContent(content, "home.stats.s2.number"),
+      label: pickContent(content, "home.stats.s2.label"),
+    },
+    {
+      number: pickContent(content, "home.stats.s3.number"),
+      label: pickContent(content, "home.stats.s3.label"),
+    },
+    {
+      number: pickContent(content, "home.stats.s4.number"),
+      label: pickContent(content, "home.stats.s4.label"),
+    },
+  ];
 
   return (
     <>
@@ -77,10 +95,9 @@ export default async function Home() {
         {/* ── Stats strip ────────────────────────────────── */}
         <section className="max-w-5xl mx-auto px-6 -mt-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 rounded-2xl bg-white ring-1 ring-foreground/10 p-6 shadow-sm">
-            <Stat number="100+" label="Alumnos formados" />
-            <Stat number="6" label="Cursos disponibles" />
-            <Stat number="∞" label="Acceso ilimitado" />
-            <Stat number="24/7" label="A tu ritmo" />
+            {stats.map((s, i) => (
+              <Stat key={i} number={s.number} label={s.label} />
+            ))}
           </div>
         </section>
 
