@@ -6,7 +6,10 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { canAccessCourse } from "@/lib/access";
 import { env } from "@/lib/env";
+import { signPlaybackTokens, type MuxPlaybackTokens } from "@/lib/mux";
 import { VideoPlayer } from "@/components/video-player";
+import { MarkLessonComplete } from "@/components/mark-lesson-complete";
+import { ReviewForm } from "@/components/review-form";
 
 const lessonTypeLabel: Record<"VIDEO" | "PDF" | "TEXT", string> = {
   VIDEO: "Vídeo",
@@ -89,6 +92,44 @@ export default async function StudentCoursePage({
       ? course.lessons[activeIndex + 1]
       : null;
 
+  // Sign Mux tokens only for the active video lesson — keeps the page light
+  // (one signing op instead of N) and the token short-lived. Returns null if
+  // signing keys aren't configured; the player then plays without a token.
+  const activeTokens =
+    active?.type === "VIDEO" && active.muxPlaybackId
+      ? await signPlaybackTokens(active.muxPlaybackId)
+      : null;
+
+  // Load all progress rows for this user×course in one query — used for the
+  // sidebar checkmarks, the active-lesson resume position, and the course
+  // progress bar in the header.
+  const progressRows = await db.lessonProgress.findMany({
+    where: {
+      userId: session.user.id,
+      lessonId: { in: course.lessons.map((l) => l.id) },
+    },
+    select: { lessonId: true, lastSeconds: true, completedAt: true },
+  });
+  const progressByLesson = new Map(progressRows.map((p) => [p.lessonId, p]));
+  const completedCount = progressRows.filter((p) => p.completedAt).length;
+  const completionPct =
+    course.lessons.length === 0
+      ? 0
+      : Math.round((completedCount / course.lessons.length) * 100);
+  const activeProgress = active ? progressByLesson.get(active.id) : undefined;
+  const activeCompleted = Boolean(activeProgress?.completedAt);
+  const activeStartAt = activeProgress?.lastSeconds ?? 0;
+
+  // Existing review by this user for this course (any status). Used to
+  // pre-fill the review form so the student can edit instead of stacking new
+  // submissions.
+  const existingReview = await db.review.findUnique({
+    where: {
+      userId_courseId: { userId: session.user.id, courseId: course.id },
+    },
+    select: { rating: true, body: true, status: true },
+  });
+
   return (
     <main className="flex-1">
       <div className="border-b border-neutral-200 bg-white">
@@ -104,10 +145,24 @@ export default async function StudentCoursePage({
               {course.title}
             </h1>
             <p className="text-sm text-neutral-500">
-              {course.lessons.length} lección
-              {course.lessons.length === 1 ? "" : "es"}
+              {completedCount} / {course.lessons.length} completadas
             </p>
           </div>
+          {course.lessons.length > 0 && (
+            <div
+              className="mt-3 h-1.5 rounded-full bg-neutral-200 overflow-hidden"
+              role="progressbar"
+              aria-valuenow={completionPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Progreso del curso"
+            >
+              <div
+                className="h-full bg-gradient-to-r from-brand-celeste to-brand-magenta transition-all"
+                style={{ width: `${completionPct}%` }}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -124,6 +179,9 @@ export default async function StudentCoursePage({
             <ol className="space-y-1">
               {course.lessons.map((l) => {
                 const isActive = active?.id === l.id;
+                const lessonCompleted = Boolean(
+                  progressByLesson.get(l.id)?.completedAt
+                );
                 return (
                   <li key={l.id}>
                     <Link
@@ -136,8 +194,18 @@ export default async function StudentCoursePage({
                       }
                     >
                       <div className="flex items-start gap-3">
-                        <span className="text-xs tabular-nums text-neutral-400 mt-0.5 w-5 shrink-0">
-                          {l.order}
+                        <span
+                          className={
+                            "mt-0.5 w-5 shrink-0 inline-flex items-center justify-center text-xs tabular-nums " +
+                            (lessonCompleted
+                              ? "size-5 rounded-full bg-brand-celeste/20 text-brand-celeste-deep font-bold"
+                              : "text-neutral-400")
+                          }
+                          aria-label={
+                            lessonCompleted ? "Lección completada" : undefined
+                          }
+                        >
+                          {lessonCompleted ? "✓" : l.order}
                         </span>
                         <div className="min-w-0 flex-1">
                           <p
@@ -184,7 +252,19 @@ export default async function StudentCoursePage({
                 lesson={active}
                 watermarkEmail={watermarkEmail}
                 watermarkIp={watermarkIp}
+                tokens={activeTokens}
+                startAt={activeStartAt}
               />
+
+              {/* Manual completion toggle. Video lessons auto-complete at 95%
+                  via the player; PDF/TEXT need this button. We render it for
+                  all types so video viewers can also mark/unmark explicitly. */}
+              <div className="flex items-center justify-end pt-2">
+                <MarkLessonComplete
+                  lessonId={active.id}
+                  initialCompleted={activeCompleted}
+                />
+              </div>
 
               <footer className="flex items-center justify-between gap-3 pt-4 border-t border-neutral-200">
                 {prev ? (
@@ -210,6 +290,22 @@ export default async function StudentCoursePage({
                   </span>
                 )}
               </footer>
+
+              <section className="mt-10 rounded-2xl border border-neutral-200 bg-white p-6 md:p-8 space-y-3">
+                <header className="space-y-1">
+                  <h3 className="text-lg font-semibold">
+                    {existingReview ? "Tu reseña" : "Cuenta tu experiencia"}
+                  </h3>
+                  <p className="text-sm text-neutral-600">
+                    Tu valoración ayuda a otros alumnos a decidir. La
+                    publicaremos cuando la moderemos.
+                  </p>
+                </header>
+                <ReviewForm
+                  courseId={course.id}
+                  initial={existingReview ?? undefined}
+                />
+              </section>
             </>
           )}
         </section>
@@ -232,10 +328,14 @@ function LessonBody({
   lesson,
   watermarkEmail,
   watermarkIp,
+  tokens,
+  startAt,
 }: {
   lesson: Lesson;
   watermarkEmail: string;
   watermarkIp: string;
+  tokens: MuxPlaybackTokens | null;
+  startAt: number;
 }) {
   if (lesson.type === "VIDEO") {
     if (lesson.muxPlaybackId) {
@@ -245,6 +345,9 @@ function LessonBody({
           watermarkEmail={watermarkEmail}
           watermarkIp={watermarkIp}
           title={lesson.title}
+          tokens={tokens ?? undefined}
+          lessonId={lesson.id}
+          startAt={startAt}
         />
       );
     }

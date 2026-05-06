@@ -23,15 +23,32 @@ export default async function DashboardPage() {
       createdAt: true,
       course: {
         select: {
+          id: true,
           slug: true,
           title: true,
           description: true,
           coverUrl: true,
-          _count: { select: { lessons: true } },
+          lessons: { select: { id: true } },
         },
       },
     },
   });
+
+  // One query for all completed-progress rows on this user's enrolled courses.
+  // Group counts by courseId in JS — small fan-out compared to N course-scoped
+  // count queries.
+  const allLessonIds = enrollments.flatMap((e) => e.course.lessons.map((l) => l.id));
+  const completed = allLessonIds.length
+    ? await db.lessonProgress.findMany({
+        where: {
+          userId: session.user.id,
+          lessonId: { in: allLessonIds },
+          completedAt: { not: null },
+        },
+        select: { lessonId: true },
+      })
+    : [];
+  const completedSet = new Set(completed.map((c) => c.lessonId));
 
   return (
     <main className="flex-1">
@@ -86,38 +103,67 @@ export default async function DashboardPage() {
           </section>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {enrollments.map((e) => (
-              <Link
-                key={e.id}
-                href={`/dashboard/cursos/${e.course.slug}`}
-                className="group rounded-xl bg-white ring-1 ring-foreground/10 overflow-hidden transition hover:ring-brand-celeste/50 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-celeste"
-              >
-                <div className="relative aspect-[16/9] overflow-hidden">
-                  {e.course.coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={e.course.coverUrl}
-                      alt=""
-                      className="w-full h-full object-cover transition group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-brand-celeste/20 to-brand-magenta/20" />
-                  )}
-                </div>
-                <div className="p-4 space-y-1.5">
-                  <h2 className="font-semibold leading-tight line-clamp-2">
-                    {e.course.title}
-                  </h2>
-                  <p className="text-xs text-neutral-500">
-                    {e.course._count.lessons} lección
-                    {e.course._count.lessons === 1 ? "" : "es"}
-                  </p>
-                  <p className="pt-2 text-sm font-medium text-brand-celeste-deep group-hover:text-brand-magenta transition">
-                    Continuar →
-                  </p>
-                </div>
-              </Link>
-            ))}
+            {enrollments.map((e) => {
+              const total = e.course.lessons.length;
+              const done = e.course.lessons.filter((l) =>
+                completedSet.has(l.id)
+              ).length;
+              const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+              const ctaLabel =
+                done === 0 ? "Empezar →" : pct === 100 ? "Repasar →" : "Continuar →";
+              return (
+                <Link
+                  key={e.id}
+                  href={`/dashboard/cursos/${e.course.slug}`}
+                  className="group rounded-xl bg-white ring-1 ring-foreground/10 overflow-hidden transition hover:ring-brand-celeste/50 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-celeste"
+                >
+                  <div className="relative aspect-[16/9] overflow-hidden">
+                    {e.course.coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={e.course.coverUrl}
+                        alt=""
+                        className="w-full h-full object-cover transition group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-brand-celeste/20 to-brand-magenta/20" />
+                    )}
+                    {pct === 100 && (
+                      <span className="absolute top-2 right-2 rounded-full bg-brand-celeste text-brand-celeste-foreground text-[10px] uppercase tracking-wide px-2 py-0.5 font-semibold">
+                        ✓ Completado
+                      </span>
+                    )}
+                  </div>
+                  <div className="p-4 space-y-2">
+                    <h2 className="font-semibold leading-tight line-clamp-2">
+                      {e.course.title}
+                    </h2>
+                    {total > 0 && (
+                      <>
+                        <div
+                          className="h-1.5 rounded-full bg-neutral-200 overflow-hidden"
+                          role="progressbar"
+                          aria-valuenow={pct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <div
+                            className="h-full bg-gradient-to-r from-brand-celeste to-brand-magenta"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-neutral-500 tabular-nums">
+                          {done} / {total} lecciones · {pct}%
+                        </p>
+                      </>
+                    )}
+                    <p className="pt-1 text-sm font-medium text-brand-celeste-deep group-hover:text-brand-magenta transition">
+                      {ctaLabel}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

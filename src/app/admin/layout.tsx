@@ -58,6 +58,12 @@ export default async function AdminLayout({
               Artículos
             </Link>
             <Link
+              href="/admin/reviews"
+              className="text-neutral-600 hover:text-brand-celeste-deep transition"
+            >
+              Reseñas
+            </Link>
+            <Link
               href="/admin/contenido"
               className="text-neutral-600 hover:text-brand-celeste-deep transition"
             >
