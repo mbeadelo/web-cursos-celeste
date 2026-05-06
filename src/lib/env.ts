@@ -37,6 +37,11 @@ const schema = z.object({
   // Sentry (error tracking). Optional — if unset, Sentry is a no-op.
   SENTRY_DSN: z.string().url().optional(),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+
+  // Upstash Redis (rate limiting). Optional — if unset, rate limiting is a
+  // no-op so dev/test environments work without provisioning Redis.
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

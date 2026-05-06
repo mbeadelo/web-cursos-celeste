@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import { env } from "@/lib/env";
+import { checkoutIpLimiter, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -20,6 +21,18 @@ const SITE_URL =
 export async function POST(req: Request) {
   if (!isStripeConfigured()) {
     return badRequest("Stripe no está configurado en este entorno.");
+  }
+
+  const ip = getClientIp(req.headers);
+  const rl = await checkoutIpLimiter.limit(ip);
+  if (!rl.success) {
+    return new Response("Demasiadas peticiones. Espera un momento.", {
+      status: 429,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Retry-After": String(Math.max(1, Math.ceil((rl.reset - Date.now()) / 1000))),
+      },
+    });
   }
 
   const form = await req.formData();

@@ -1,6 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import MuxPlayer from "@mux/mux-player-react";
+import { recordVideoProgress } from "@/lib/progress";
 
 type Props = {
   playbackId: string;
@@ -10,25 +12,61 @@ type Props = {
   watermarkIp: string;
   /** Optional title for the player chrome (Mux shows it on the controls). */
   title?: string;
+  /**
+   * Signed playback tokens from `signPlaybackTokens()`. Required when the
+   * underlying asset uses a `signed` playback policy; ignored if the asset is
+   * `public`. When undefined we play unsigned (legacy/dev path).
+   */
+  tokens?: {
+    playback: string;
+    thumbnail: string;
+    storyboard: string;
+  };
+  /**
+   * If set, the player records playback progress for this lesson. Throttled
+   * to one upsert every 10 s plus one on `ended`. Server action validates
+   * enrollment, so we silently ignore failures here.
+   */
+  lessonId?: string;
+  /**
+   * Initial seek (in seconds) for "continue where you left off". Comes from
+   * the latest LessonProgress.lastSeconds. Skipped when 0 or unset.
+   */
+  startAt?: number;
 };
 
+const PROGRESS_INTERVAL_MS = 10_000;
+
 /**
- * Mux player with a client-side watermark overlay showing the student's email
- * and IP. The overlay is positioned absolute on top of the video and rotates
- * subtly so it's harder to crop out. This is **disuasion**, not protection —
- * a determined attacker can record the screen. For paid digital courses with
- * <100 students this is the right cost/value trade-off.
- *
- * Future upgrade path: signed playback URLs (Mux signing keys) + DRM. Both
- * require the playback policy to be `signed` instead of `public` when the
- * upload is created. Out of scope for v1.
+ * Mux player with signed playback tokens (when configured) plus a client-side
+ * watermark overlay showing the student's email and IP. The overlay rotates
+ * subtly so it's harder to crop out. Watermark is disuasion against casual
+ * sharing; signed playback is what actually prevents non-students from
+ * watching the video by URL.
  */
 export function VideoPlayer({
   playbackId,
   watermarkEmail,
   watermarkIp,
   title,
+  tokens,
+  lessonId,
+  startAt,
 }: Props) {
+  const lastReportRef = useRef(0);
+  const seekedRef = useRef(false);
+
+  function reportProgress(currentTime: number, duration: number) {
+    if (!lessonId) return;
+    void recordVideoProgress({
+      lessonId,
+      lastSeconds: currentTime,
+      durationSeconds: duration,
+    }).catch(() => {
+      // Silent — auth may have expired; don't break playback.
+    });
+  }
+
   return (
     <div className="relative rounded-2xl overflow-hidden bg-black aspect-video shadow-lg">
       <MuxPlayer
@@ -36,7 +74,33 @@ export function VideoPlayer({
         streamType="on-demand"
         accentColor="#0ea5e9"
         title={title}
+        tokens={tokens}
         style={{ width: "100%", height: "100%", aspectRatio: "16/9" }}
+        onLoadedMetadata={(e) => {
+          // Restore last position once metadata is available. We only seek
+          // once per mount so re-renders don't fight the user scrubbing.
+          if (seekedRef.current) return;
+          if (typeof startAt === "number" && startAt > 5) {
+            const target = e.currentTarget as HTMLMediaElement;
+            // Don't seek past the end — clamp to duration - 5s as a safety net.
+            const max = Math.max(0, (target.duration || 0) - 5);
+            target.currentTime = Math.min(startAt, max);
+          }
+          seekedRef.current = true;
+        }}
+        onTimeUpdate={(e) => {
+          if (!lessonId) return;
+          const now = Date.now();
+          if (now - lastReportRef.current < PROGRESS_INTERVAL_MS) return;
+          lastReportRef.current = now;
+          const target = e.currentTarget as HTMLMediaElement;
+          reportProgress(target.currentTime, target.duration || 0);
+        }}
+        onEnded={(e) => {
+          if (!lessonId) return;
+          const target = e.currentTarget as HTMLMediaElement;
+          reportProgress(target.currentTime, target.duration || 0);
+        }}
       />
 
       {/* Watermark overlay: top-right, faint, rotated. aria-hidden so it

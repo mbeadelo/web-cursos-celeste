@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { signIn, auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
+import {
+  loginEmailLimiter,
+  loginIpLimiter,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export const metadata: Metadata = { title: "Acceder" };
 
@@ -14,6 +20,18 @@ async function loginAction(formData: FormData) {
     redirect("/login?error=invalid-email");
   }
   const email = raw.trim().toLowerCase();
+
+  // Rate limit: per-IP first (broader axis), then per-email. We always burn a
+  // token from each so concurrent flooders from the same IP also exhaust the
+  // per-email limit when iterating different addresses.
+  const ip = getClientIp(await headers());
+  const [byIp, byEmail] = await Promise.all([
+    loginIpLimiter.limit(ip),
+    loginEmailLimiter.limit(email),
+  ]);
+  if (!byIp.success || !byEmail.success) {
+    redirect("/login?error=rate-limited");
+  }
 
   // Closed registration: only emails already in the User table can sign in.
   // The admin email is always allowed as a recovery path in case the DB is wiped.
@@ -77,6 +95,11 @@ export default async function LoginPage({
                 comprado, revisa que el email es el mismo que usaste en el pago.
               </p>
             </div>
+          )}
+          {error === "rate-limited" && (
+            <p className="text-sm text-red-600">
+              Demasiados intentos. Espera unos minutos y vuelve a probar.
+            </p>
           )}
 
           <button
