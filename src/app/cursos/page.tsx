@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
 import { Card, CardContent } from "@/components/ui/card";
+import { CourseBadge } from "@/components/course-badge";
 
 export const metadata: Metadata = {
   title: "Cursos",
@@ -16,9 +17,15 @@ const formatter = new Intl.NumberFormat("es-ES", {
 });
 
 export default async function CursosPage() {
+  // Ordering: manual featuredOrder asc (nulls last), then most recent first.
+  // Postgres treats NULLs as "greater than" with `asc nulls last` which is the
+  // ergonomic default for "pinned vs unpinned".
   const courses = await db.course.findMany({
     where: { published: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: [
+      { featuredOrder: { sort: "asc", nulls: "last" } },
+      { createdAt: "desc" },
+    ],
     select: {
       id: true,
       slug: true,
@@ -26,6 +33,7 @@ export default async function CursosPage() {
       description: true,
       priceCents: true,
       coverUrl: true,
+      badge: true,
     },
   });
 
@@ -52,16 +60,19 @@ export default async function CursosPage() {
                   className="group focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-celeste rounded-xl"
                 >
                   <Card className="h-full transition group-hover:ring-brand-celeste/40 group-hover:-translate-y-0.5">
-                    {c.coverUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={c.coverUrl}
-                        alt=""
-                        className="w-full aspect-[16/9] object-cover"
-                      />
-                    ) : (
-                      <div className="w-full aspect-[16/9] bg-gradient-to-br from-brand-celeste/20 to-brand-magenta/20" />
-                    )}
+                    <div className="relative">
+                      {c.coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={c.coverUrl}
+                          alt=""
+                          className="w-full aspect-[16/9] object-cover"
+                        />
+                      ) : (
+                        <div className="w-full aspect-[16/9] bg-gradient-to-br from-brand-celeste/20 to-brand-magenta/20" />
+                      )}
+                      <CourseBadge badge={c.badge} floating />
+                    </div>
                     <CardContent className="space-y-2">
                       <h2 className="font-semibold text-lg leading-tight">
                         {c.title}

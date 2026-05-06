@@ -67,6 +67,10 @@ export default async function EditCoursePage({
               priceCents: course.priceCents,
               coverUrl: course.coverUrl,
               published: course.published,
+              badge: course.badge,
+              featuredOrder: course.featuredOrder,
+              targetAudience: course.targetAudience,
+              whatYouLearn: course.whatYouLearn,
             }}
             action={action}
             submitLabel="Guardar cambios"

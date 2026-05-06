@@ -33,6 +33,18 @@ enum OrderStatus {
   FAILED
 }
 
+enum CourseBadge {
+  BESTSELLER
+  NEW
+  COMING_SOON
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -46,26 +58,42 @@ model User {
   enrollments Enrollment[]
   orders      Order[]
   articles    Article[]
+  progress    LessonProgress[]
+  reviews     Review[]
   // Auth.js relations
   accounts    Account[]
   sessions    Session[]
 }
 
 model Course {
-  id          String   @id @default(cuid())
-  slug        String   @unique
-  title       String
-  description String   @db.Text
-  priceCents  Int
-  currency    String   @default("eur")
-  published   Boolean  @default(false)
-  coverUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String       @id @default(cuid())
+  slug           String       @unique
+  title          String
+  description    String       @db.Text
+  priceCents     Int
+  currency       String       @default("eur")
+  published      Boolean      @default(false)
+  coverUrl       String?
+  // Optional manual marketing badge shown on cards and the landing page.
+  // Manual on purpose: with a small catalogue an automatic "best seller"
+  // (e.g. by sales count) can be empty or unfair the first weeks.
+  badge          CourseBadge?
+  // Optional sort key for /cursos and home — lower numbers come first,
+  // ties fall back to createdAt desc. NULL means "no manual order, sort
+  // by recency". Lets the admin pin courses without touching dates.
+  featuredOrder  Int?
+  // Landing copy (optional). Each field is plain text where every non-empty
+  // line renders as a bullet on the course landing. Kept as Text (not a
+  // relation) — it's rarely >5-8 bullets and the admin form stays trivial.
+  targetAudience String?      @db.Text
+  whatYouLearn   String?      @db.Text
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   lessons     Lesson[]
   enrollments Enrollment[]
   orders      Order[]
+  reviews     Review[]
 }
 
 model Lesson {
@@ -87,6 +115,8 @@ model Lesson {
   body          String?    @db.Text
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
+
+  progress LessonProgress[]
 
   @@unique([courseId, order])
   @@index([courseId])
@@ -168,6 +198,46 @@ model LegalDocument {
   title     String
   body      String   @db.Text
   updatedAt DateTime @updatedAt
+}
+
+// Per-student lesson progress. One row per (user, lesson). `lastSeconds` is
+// the playhead position in VIDEO lessons (used by "continue where you left
+// off"); `completedAt` is set once the student crosses the completion
+// threshold (95% for video, explicit click for PDF/TEXT). Keeping the row
+// small lets us upsert frequently without table bloat.
+model LessonProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lastSeconds Int       @default(0)
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+}
+
+// Course reviews. Only users with an Enrollment for the course can submit
+// (enforced in server action, not at the schema level). Status starts as
+// PENDING and an admin moderates from /admin/reviews. Public landing only
+// shows APPROVED rows.
+model Review {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  rating    Int
+  body      String       @db.Text
+  status    ReviewStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([userId, courseId])
+  @@index([courseId, status])
 }
 
 // ─── Auth.js (NextAuth v5) tables ───

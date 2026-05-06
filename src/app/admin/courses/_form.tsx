@@ -13,6 +13,8 @@ import { CoverUpload } from "./_cover-upload";
 
 // Schema for the form input (before transform). priceCents is a string in the
 // form (input type=number returns string in HTML), we coerce.
+const BadgeFormEnum = z.enum(["", "BESTSELLER", "NEW", "COMING_SOON"]);
+
 const FormSchema = z.object({
   title: z.string().trim().min(3, "Mínimo 3 caracteres").max(200),
   slug: z.string().trim().max(100).optional().or(z.literal("")),
@@ -23,6 +25,15 @@ const FormSchema = z.object({
     .refine((v) => !Number.isNaN(Number(v)) && Number(v) >= 0, "Debe ser un número >= 0"),
   coverUrl: z.string().trim().url("URL no válida").optional().or(z.literal("")),
   published: z.boolean(),
+  badge: BadgeFormEnum,
+  featuredOrder: z
+    .string()
+    .refine(
+      (v) => v === "" || (!Number.isNaN(Number(v)) && Number.isInteger(Number(v)) && Number(v) >= 0),
+      "Entero >= 0 o vacío"
+    ),
+  targetAudience: z.string().max(2000).optional(),
+  whatYouLearn: z.string().max(2000).optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -30,6 +41,8 @@ type FormValues = z.infer<typeof FormSchema>;
 type ActionResult =
   | { ok: true }
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+
+type CourseBadge = "BESTSELLER" | "NEW" | "COMING_SOON";
 
 type Props = {
   initial?: {
@@ -39,6 +52,10 @@ type Props = {
     priceCents: number;
     coverUrl: string | null;
     published: boolean;
+    badge: CourseBadge | null;
+    featuredOrder: number | null;
+    targetAudience: string | null;
+    whatYouLearn: string | null;
   };
   action: (input: {
     title: string;
@@ -48,6 +65,10 @@ type Props = {
     currency?: string;
     coverUrl?: string;
     published: boolean;
+    badge?: CourseBadge | null;
+    featuredOrder?: number | null;
+    targetAudience?: string | null;
+    whatYouLearn?: string | null;
   }) => Promise<ActionResult | void>;
   submitLabel: string;
   storageEnabled: boolean;
@@ -72,6 +93,11 @@ export function CourseForm({ initial, action, submitLabel, storageEnabled }: Pro
       priceEuros: initial ? (initial.priceCents / 100).toFixed(2) : "",
       coverUrl: initial?.coverUrl ?? "",
       published: initial?.published ?? false,
+      badge: (initial?.badge ?? "") as FormValues["badge"],
+      featuredOrder:
+        initial?.featuredOrder != null ? String(initial.featuredOrder) : "",
+      targetAudience: initial?.targetAudience ?? "",
+      whatYouLearn: initial?.whatYouLearn ?? "",
     },
   });
 
@@ -89,6 +115,10 @@ export function CourseForm({ initial, action, submitLabel, storageEnabled }: Pro
       priceCents,
       coverUrl: values.coverUrl || undefined,
       published: values.published,
+      badge: values.badge === "" ? null : (values.badge as CourseBadge),
+      featuredOrder: values.featuredOrder === "" ? null : Number(values.featuredOrder),
+      targetAudience: values.targetAudience?.trim() || null,
+      whatYouLearn: values.whatYouLearn?.trim() || null,
     });
     if (result && result.ok === false) {
       setServerError(result.error);
@@ -144,6 +174,63 @@ export function CourseForm({ initial, action, submitLabel, storageEnabled }: Pro
           value={coverUrl ?? ""}
           onChange={(v) => setValue("coverUrl", v, { shouldDirty: true })}
           storageEnabled={storageEnabled}
+        />
+      </Field>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field
+          label="Etiqueta destacada"
+          hint="Aparece como pegatina en las tarjetas y el detalle del curso."
+          error={errors.badge?.message}
+        >
+          <select
+            {...register("badge")}
+            className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-celeste"
+          >
+            <option value="">Sin etiqueta</option>
+            <option value="BESTSELLER">Más vendido</option>
+            <option value="NEW">Nuevo</option>
+            <option value="COMING_SOON">Próximamente</option>
+          </select>
+        </Field>
+
+        <Field
+          label="Orden destacado"
+          hint="Menor = más arriba. Vacío = ordenar por fecha."
+          error={errors.featuredOrder?.message}
+        >
+          <Input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            step="1"
+            {...register("featuredOrder")}
+            placeholder="(vacío)"
+          />
+        </Field>
+      </div>
+
+      <Field
+        label="Para quién es este curso"
+        hint="Una línea por bullet. Aparece como sección en la landing si lo rellenas."
+        error={errors.targetAudience?.message}
+      >
+        <Textarea
+          rows={5}
+          {...register("targetAudience")}
+          placeholder={"Personas que…\nQuienes ya…\nSi nunca has…"}
+        />
+      </Field>
+
+      <Field
+        label="Qué vas a aprender"
+        hint="Una línea por bullet. Lista de resultados concretos del curso."
+        error={errors.whatYouLearn?.message}
+      >
+        <Textarea
+          rows={5}
+          {...register("whatYouLearn")}
+          placeholder={"A montar X paso a paso\nA decidir cuándo usar Y\nA evitar los errores típicos de Z"}
         />
       </Field>
 

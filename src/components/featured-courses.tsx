@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { CourseBadge } from "@/components/course-badge";
+
+type Badge = "BESTSELLER" | "NEW" | "COMING_SOON";
 
 const formatter = new Intl.NumberFormat("es-ES", {
   style: "currency",
@@ -13,6 +16,7 @@ type Card = {
   priceCents: number;
   coverUrl: string;
   isDemo: boolean;
+  badge: Badge | null;
 };
 
 const demos: Card[] = [
@@ -23,6 +27,7 @@ const demos: Card[] = [
     priceCents: 4900,
     coverUrl: "/demo/course-1.jpg",
     isDemo: true,
+    badge: null,
   },
   {
     href: "/cursos",
@@ -31,6 +36,7 @@ const demos: Card[] = [
     priceCents: 6900,
     coverUrl: "/demo/course-2.jpg",
     isDemo: true,
+    badge: null,
   },
   {
     href: "/cursos",
@@ -39,6 +45,7 @@ const demos: Card[] = [
     priceCents: 8900,
     coverUrl: "/demo/course-3.jpg",
     isDemo: true,
+    badge: null,
   },
   {
     href: "/cursos",
@@ -47,6 +54,7 @@ const demos: Card[] = [
     priceCents: 5900,
     coverUrl: "/demo/course-4.jpg",
     isDemo: true,
+    badge: null,
   },
   {
     href: "/cursos",
@@ -55,6 +63,7 @@ const demos: Card[] = [
     priceCents: 7900,
     coverUrl: "/demo/course-5.jpg",
     isDemo: true,
+    badge: null,
   },
   {
     href: "/cursos",
@@ -63,13 +72,17 @@ const demos: Card[] = [
     priceCents: 9900,
     coverUrl: "/demo/course-6.jpg",
     isDemo: true,
+    badge: null,
   },
 ];
 
 export async function FeaturedCourses() {
   const real = await db.course.findMany({
     where: { published: true },
-    orderBy: { createdAt: "desc" },
+    orderBy: [
+      { featuredOrder: { sort: "asc", nulls: "last" } },
+      { createdAt: "desc" },
+    ],
     take: 8,
     select: {
       slug: true,
@@ -77,6 +90,7 @@ export async function FeaturedCourses() {
       description: true,
       priceCents: true,
       coverUrl: true,
+      badge: true,
     },
   });
 
@@ -87,6 +101,7 @@ export async function FeaturedCourses() {
     priceCents: c.priceCents,
     coverUrl: c.coverUrl ?? "/demo/course-1.jpg",
     isDemo: false,
+    badge: c.badge,
   }));
 
   // Fill with demos so the carousel always feels populated.
@@ -134,10 +149,12 @@ export async function FeaturedCourses() {
                 alt=""
                 className="w-full h-full object-cover transition group-hover:scale-[1.03]"
               />
-              {c.isDemo && (
+              {c.isDemo ? (
                 <span className="absolute top-2 left-2 rounded-full bg-white/90 backdrop-blur text-[10px] uppercase tracking-wide px-2 py-0.5 text-neutral-700">
                   Demo
                 </span>
+              ) : (
+                <CourseBadge badge={c.badge} floating />
               )}
             </div>
             <div className="p-4 space-y-1.5">
