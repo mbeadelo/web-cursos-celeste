@@ -40,6 +40,7 @@ Cada página sigue el mismo formato:
 
 - [Vercel](/herramientas/vercel) — hosting + CI/CD
 - [Sentry](/herramientas/sentry) — monitor de errores
+- [Upstash Redis](/herramientas/upstash) — rate limiting
 
 ### Toolchain (entorno local)
 

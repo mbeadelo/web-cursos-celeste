@@ -56,11 +56,16 @@ No hay backend separado. Lo que en otros stacks sería "frontend + API REST", aq
 | Tabla | Para qué |
 |---|---|
 | `User` | Usuarios (alumnos y admins) |
-| `Course` | Cursos publicables, con precio |
+| `Course` | Cursos publicables, con precio, `badge` (BESTSELLER/NEW/COMING_SOON), `featuredOrder` y copy de landing (`targetAudience`, `whatYouLearn`) |
 | `Lesson` | Lecciones dentro de un curso (vídeo, PDF o texto) |
 | `Enrollment` | Quién tiene acceso a qué curso |
+| `LessonProgress` | Progreso por (alumno, lección): `lastSeconds` para "continuar donde lo dejaste" + `completedAt` cuando supera el 95 % o el alumno marca a mano |
+| `Review` | Reseñas con estados PENDING/APPROVED/REJECTED. Solo APROVED se muestran en público |
 | `Order` | Compras hechas con Stripe |
 | `StripeEvent` | Idempotencia de webhooks (para no duplicar matrículas) |
+| `Article` | Posts de blog (TipTap, sanitizados) |
+| `SiteContent` | Copy editable del sitio (claves dot-notation) |
+| `LegalDocument` | Privacidad, términos, cookies |
 | `Account`, `Session`, `VerificationToken` | Tablas de Auth.js |
 
 ### 3. Pagos (Stripe)
@@ -76,10 +81,12 @@ El alumno **nunca** ve formularios de tarjeta en nuestro código. Eso es de Stri
 
 - El admin sube un vídeo desde el panel directamente a Mux (URL de subida firmada por nuestro backend).
 - Mux notifica por webhook cuando el `asset` está listo (transcoding hecho).
-- Cuando el alumno reproduce, generamos una **signed playback URL** server-side (válida unos minutos) **solo si tiene `Enrollment` para ese curso**.
-- El reproductor (`@mux/mux-player-react`) carga la URL firmada vía HLS.
+- Cuando el alumno reproduce, generamos **JWT firmados de Mux** (`playback`, `thumbnail`, `storyboard`) server-side, **solo si tiene `Enrollment`**. Los tokens caducan a las 6 h.
+- Los nuevos uploads se crean con `playback_policies: ["signed"]` cuando hay `MUX_SIGNING_KEY_ID` + `MUX_SIGNING_PRIVATE_KEY` en el entorno; en otro caso siguen siendo `public` (dev). Vídeos antiguos `public` siguen funcionando.
+- El reproductor (`@mux/mux-player-react`) recibe los tokens via prop `tokens={...}`.
+- Watermark client-side adicional con email + IP del alumno (disuasión, no protección — ver Fase 8).
 
-Resultado: los enlaces no se pueden compartir (caducan), y sin matrícula no hay URL.
+Resultado: sin matrícula no hay token; los tokens caducan; los vídeos no son enlazables.
 
 ### 5. Archivos estáticos (Cloudflare R2)
 
@@ -99,7 +106,19 @@ Resultado: los enlaces no se pueden compartir (caducan), y sin matrícula no hay
 - Único método inicial: **magic link** por email. Sin contraseñas.
 - Sesiones por **JWT** (cookie HttpOnly firmada con `AUTH_SECRET`). La tabla `Session` queda sin uso, pero el adapter Prisma sigue persistiendo `User`, `Account` y `VerificationToken`.
 - Roles: `STUDENT` (default) y `ADMIN`. El rol se lee de `User.role` en el primer sign-in y se persiste en el JWT.
-- Defense in depth: middleware (edge, sin DB) + revalidación con `auth()` en cada layout protegido (`/admin/layout.tsx`).
+- Defense in depth: edge proxy (sin DB) + revalidación con `auth()` en cada layout protegido (`/admin/layout.tsx`).
+- **Rate limit** sobre magic-link y checkout via Upstash Redis (ver [Fase 8](/fases/fase-8-polish-seguridad-retencion)).
+
+### 8. Edge proxy (`src/proxy.ts`)
+
+> En Next 16, el antiguo `middleware` se llama **proxy**. El archivo debe vivir en `src/proxy.ts` cuando hay carpeta `src/`.
+
+Dos responsabilidades:
+
+1. **Auth gating** delegado en `authConfig.callbacks.authorized` — redirige a `/login` lo que vaya a `/admin` o `/dashboard` sin sesión válida.
+2. **Content-Security-Policy con nonce por petición** — Next.js detecta el header `Content-Security-Policy` en el request y aplica el nonce automáticamente a sus scripts inyectados.
+
+Cabeceras estáticas (HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP) en `next.config.ts`.
 
 ## Flujo de una compra completa (end-to-end)
 

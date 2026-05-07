@@ -67,10 +67,41 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 ## Autorización
 
 - **Sesión JWT** (no DB sessions). El rol se persiste en el token tras el primer login y en cada `update`. Si cambias el rol de un usuario en DB, su JWT no refleja el cambio hasta que el token rote (24 h por defecto).
-- **Edge middleware** (`middleware.ts`) usa `auth.config.ts` (sin adapter Prisma) para gating sin tocar DB.
-- **Defense in depth**: además del middleware, cada layout server-side (`src/app/admin/layout.tsx`) revalida la sesión y rol con `auth()`.
+- **Edge proxy** (`src/proxy.ts` — en Next 16, antes `middleware.ts`) usa `auth.config.ts` (sin adapter Prisma) para gating sin tocar DB. **Debe vivir en `src/proxy.ts`** (cuando hay carpeta `src/`); en raíz se ignora silenciosamente.
+- **Defense in depth**: además del proxy, cada layout server-side (`src/app/admin/layout.tsx`) revalida la sesión y rol con `auth()`.
 - Acceso a contenido por `Enrollment`. Helper `canAccessLesson(userId, lessonId)` en `src/lib/access.ts` (Fase 4).
 - Tras refund (webhook `charge.refunded`): borrar `Enrollment` correspondiente.
+
+## Seguridad de transporte y CSP
+
+- Cabeceras estáticas (HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP) en `next.config.ts`.
+- **Content-Security-Policy con nonce por petición** en `src/proxy.ts`. Next.js 16 propaga el nonce automáticamente cuando ve el header `Content-Security-Policy` en el request.
+- Allow-list incluye Mux (`*.mux.com`, `*.litix.io`), Stripe (`js.stripe.com`), Sentry (`*.ingest.sentry.io`), Vercel vitals.
+- Si un nuevo proveedor inyecta scripts, **añadir su origen** a `script-src`/`connect-src`/`frame-src` en `src/proxy.ts`. No usar `'unsafe-inline'` para scripts.
+- Si renombras o mueves `proxy.ts` y dev devuelve 500 con `MODULE_UNPARSABLE`, borra `.next/` antes de relevantar.
+
+## Rate limiting
+
+- Magic link (`/login`) y `/api/checkout` van rate-limited contra Upstash Redis (`src/lib/rate-limit.ts`).
+- **Sin `UPSTASH_REDIS_REST_URL`/`_TOKEN` definidos**, los limiters son **no-op** silenciosos. Esto permite dev/test sin Redis. En producción **deben** estar definidos.
+
+## Mux signed playback
+
+- `createDirectUpload()` selecciona política `signed` o `public` automáticamente según `isMuxSigningConfigured()`.
+- Para reproducir, llamar `signPlaybackTokens(playbackId)` server-side (devuelve `null` si signing no está configurado) y pasar el resultado al `<VideoPlayer tokens={...} />`.
+- Tokens por defecto caducan a las 6 h.
+
+## Progreso del alumno
+
+- Modelo `LessonProgress` con `(userId, lessonId)` único, `lastSeconds` (resume) y `completedAt`.
+- Server actions en `src/lib/progress.ts`. Validan `Enrollment` antes de escribir y devuelven `{ ok: false }` silencioso si fallan (no romper el reproductor).
+- Auto-complete a 95 % de duración en vídeo. PDF/TEXT requieren botón explícito.
+
+## Reseñas
+
+- Modelo `Review` con estados PENDING/APPROVED/REJECTED y `(userId, courseId)` único.
+- `submitReview` exige `Enrollment`. Reenviar **edita** la reseña existente y la vuelve a `PENDING`.
+- Solo `APPROVED` aparece en la landing pública. Moderación en `/admin/reviews`.
 
 ## Archivos críticos
 
@@ -79,16 +110,27 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 | `prisma/schema.prisma` | Modelo de datos |
 | `src/lib/db.ts` | Cliente Prisma singleton |
 | `src/lib/env.ts` | Variables de entorno validadas |
-| `src/lib/auth.config.ts` | Auth.js config edge-safe (sin adapter, usado por middleware) |
+| `src/lib/auth.config.ts` | Auth.js config edge-safe (sin adapter, usado por proxy) |
 | `src/lib/auth.ts` | Auth.js completo: handlers, signIn/signOut, adapter Prisma |
 | `src/types/next-auth.d.ts` | Augmentación de tipos: `session.user.role` |
 | `src/app/api/auth/[...nextauth]/route.ts` | Route handler de Auth.js |
 | `prisma/seed.ts` | Seed de admin (lee `ADMIN_EMAIL` del env) |
-| `src/lib/stripe.ts` | Cliente Stripe + helpers (Fase 3) |
-| `src/lib/access.ts` | Helpers de autorización (Fase 4) |
-| `src/app/api/webhooks/stripe/route.ts` | Receptor de eventos Stripe (Fase 3) |
-| `src/app/api/checkout/route.ts` | Crear Checkout Session (Fase 3) |
-| `middleware.ts` | Gating de rutas (Fase 1) |
+| `src/lib/stripe.ts` | Cliente Stripe + helpers |
+| `src/lib/mux.ts` | Cliente Mux + `signPlaybackTokens()` para signed playback |
+| `src/lib/storage.ts` | URLs firmadas de R2 (PDFs / covers) |
+| `src/lib/access.ts` | Helpers de autorización (`canAccessLesson`, `canAccessCourse`) |
+| `src/lib/rate-limit.ts` | Rate limiters Upstash (no-op sin keys) |
+| `src/lib/progress.ts` | Server actions de `LessonProgress` |
+| `src/lib/reviews.ts` | Server actions de `Review` (alumno + admin) |
+| `src/lib/json-ld.ts` | Builders schema.org/Course y Article |
+| `src/lib/legal.ts` | Defaults + lookup de `LegalDocument` |
+| `src/lib/site-content.ts` | Lookup + defaults de `SiteContent` |
+| `src/lib/html.ts` | Sanitizer del editor TipTap |
+| `src/app/api/webhooks/stripe/route.ts` | Receptor de eventos Stripe |
+| `src/app/api/webhooks/mux/route.ts` | Receptor de eventos Mux |
+| `src/app/api/checkout/route.ts` | Crear Checkout Session |
+| `src/proxy.ts` | Edge proxy: gating + CSP (Next 16; vivía como `middleware.ts`) |
+| `next.config.ts` | Cabeceras estáticas de seguridad (HSTS, etc.) |
 
 ## Despliegue
 
