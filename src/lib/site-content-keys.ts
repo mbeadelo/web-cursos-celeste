@@ -100,6 +100,46 @@ export const SITE_CONTENT_KEYS = {
     hint: "Tu bio. Usa la barra para formato.",
     default: `<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Llevo años enseñando lo que sé y guiando a alumnas y alumnos a su propio ritmo. Empecé compartiendo apuntes sueltos y, sin darme cuenta, terminé montando una pequeña comunidad que crecía con cada nueva pregunta.</p><p>Mauris aliquet, lectus eu pulvinar tincidunt, mi sapien efficitur ipsum. Hoy, esta plaza es el sitio donde reúno todo lo que he ido aprendiendo y donde puedes acceder a los cursos cuando y como quieras. Material práctico, lecciones grabadas y respuestas reales cuando te atascas.</p><p>Pellentesque habitant morbi tristique senectus et netus. Si quieres empezar por algún sitio, te recomiendo darte una vuelta por el catálogo y ver qué encaja contigo.</p>`,
   },
+
+  // ─── Email — Bienvenida tras compra ───
+  // Estas claves se inyectan en src/lib/email.ts → sendPurchaseWelcomeEmail.
+  // Soportan placeholders entre llaves dobles: {{courseTitle}}, {{loginUrl}}.
+  // El admin los ve en el hint para que pueda usarlos en su redacción.
+  "email.purchase.subject": {
+    type: "text",
+    section: "Email — Bienvenida tras compra",
+    label: "Asunto del email",
+    hint: 'Placeholders: {{courseTitle}}.',
+    default: "Tu acceso a {{courseTitle}} está listo",
+  },
+  "email.purchase.body_new": {
+    type: "rich",
+    section: "Email — Bienvenida tras compra",
+    label: "Mensaje (alumno nuevo, primera compra)",
+    hint:
+      "Lo verán quienes compran por primera vez. Placeholders disponibles: {{courseTitle}}, {{loginUrl}}.",
+    default:
+      `<p>Acabamos de procesar tu compra de <strong>{{courseTitle}}</strong>. Tu cuenta está creada y lista.</p>` +
+      `<p>Para entrar al curso, accede a <a href="{{loginUrl}}">{{loginUrl}}</a> con este mismo email y recibirás un enlace de un solo uso.</p>` +
+      `<p>Tu acceso es permanente. Puedes ver el curso cuando quieras desde tu panel.</p>`,
+  },
+  "email.purchase.body_existing": {
+    type: "rich",
+    section: "Email — Bienvenida tras compra",
+    label: "Mensaje (alumno que ya tenía cuenta)",
+    hint:
+      "Lo verán quienes ya tenían cuenta antes. Placeholders disponibles: {{courseTitle}}, {{loginUrl}}.",
+    default:
+      `<p>Acabamos de añadir <strong>{{courseTitle}}</strong> a tu cuenta.</p>` +
+      `<p>Entra en <a href="{{loginUrl}}">{{loginUrl}}</a> con este mismo email para acceder al curso.</p>`,
+  },
+  "email.purchase.cta_label": {
+    type: "text",
+    section: "Email — Bienvenida tras compra",
+    label: "Texto del botón",
+    hint: "Botón principal del email. Apunta siempre a la página de acceso.",
+    default: "Acceder ahora",
+  },
 } as const satisfies Record<
   string,
   {
