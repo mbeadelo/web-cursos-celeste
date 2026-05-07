@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
-import { env } from "@/lib/env";
+import { buildArticleJsonLd, jsonLdString } from "@/lib/json-ld";
 import { estimateReadingTimeMinutes } from "@/lib/utils";
 
 const dateFormatter = new Intl.DateTimeFormat("es-ES", {
@@ -61,25 +62,20 @@ export default async function ArticlePage({
   });
   if (!article || !article.published) notFound();
 
-  const canonicalUrl = `${env.AUTH_URL ?? "https://bienvenidoatuplaza.com"}/articulos/${article.slug}`;
   const authorName = article.author?.name ?? "Bienvenido a tu plaza";
 
-  // JSON-LD schema.org/Article — enables rich results in Google.
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: article.title,
-    description: article.excerpt,
-    image: article.coverUrl ? [article.coverUrl] : undefined,
-    datePublished: article.publishedAt?.toISOString(),
-    dateModified: article.updatedAt.toISOString(),
-    author: { "@type": "Person", name: authorName },
-    publisher: {
-      "@type": "Organization",
-      name: "Bienvenido a tu plaza",
-    },
-    mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
-  };
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const articleJsonLd = jsonLdString(
+    buildArticleJsonLd({
+      slug: article.slug,
+      title: article.title,
+      excerpt: article.excerpt,
+      coverUrl: article.coverUrl,
+      publishedAt: article.publishedAt,
+      updatedAt: article.updatedAt,
+      authorName: article.author?.name ?? null,
+    })
+  );
 
   return (
     <>
@@ -87,8 +83,8 @@ export default async function ArticlePage({
       <main className="flex-1">
         <script
           type="application/ld+json"
-          // Safe: we control all values, no user input.
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          nonce={nonce}
+          dangerouslySetInnerHTML={{ __html: articleJsonLd }}
         />
 
         <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">

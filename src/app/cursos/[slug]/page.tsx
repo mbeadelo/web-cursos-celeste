@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -7,6 +8,7 @@ import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
 import { CourseBadge } from "@/components/course-badge";
 import { RatingStars } from "@/components/rating-stars";
+import { buildCourseJsonLd, jsonLdString } from "@/lib/json-ld";
 import { isStripeConfigured } from "@/lib/stripe";
 
 const formatter = new Intl.NumberFormat("es-ES", {
@@ -124,8 +126,28 @@ export default async function CourseDetailPage({
     count: reviews.filter((r) => r.rating === stars).length,
   }));
 
+  // CSP nonce for the JSON-LD <script>. Set by src/proxy.ts on every request.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const courseJsonLd = jsonLdString(
+    buildCourseJsonLd({
+      slug: course.slug,
+      title: course.title,
+      description: course.description,
+      priceCents: course.priceCents,
+      currency: course.currency,
+      coverUrl: course.coverUrl,
+      reviewAvg: reviewCount > 0 ? reviewAvg : undefined,
+      reviewCount: reviewCount > 0 ? reviewCount : undefined,
+    })
+  );
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: courseJsonLd }}
+      />
       <PublicHeader />
       <main className="flex-1 px-6 py-12 pb-28 md:pb-12">
         <div className="max-w-5xl mx-auto space-y-12">
