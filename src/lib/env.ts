@@ -12,8 +12,12 @@ const schema = z.object({
   RESEND_API_KEY: z.string().startsWith("re_"),
   EMAIL_FROM: z.string().min(3),
 
-  // Bootstrap admin (used by prisma/seed.ts)
+  // Bootstrap admin (used by prisma/seed.ts). Singular: the recovery admin that
+  // auth.ts also allows through closed registration. Always exactly one email.
   ADMIN_EMAIL: z.string().email(),
+  // Extra admins (optional, comma-separated). Only the seed reads this — it
+  // upserts each as ADMIN. Lets us pin co-owner admins (e.g. Celeste) in code.
+  ADMIN_EMAILS: z.string().optional(),
 
   // Stripe (Fase 3)
   STRIPE_SECRET_KEY: z.string().optional(),

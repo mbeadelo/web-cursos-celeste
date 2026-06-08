@@ -13,13 +13,26 @@ const db = new PrismaClient({
 });
 
 async function main() {
-  const adminEmail = required("ADMIN_EMAIL");
-  const user = await db.user.upsert({
-    where: { email: adminEmail },
-    update: { role: "ADMIN" },
-    create: { email: adminEmail, role: "ADMIN" },
-  });
-  console.log(`✔ Admin asegurado: ${user.email} (id=${user.id}, role=${user.role})`);
+  // ADMIN_EMAIL (singular, required) is the bootstrap/recovery admin.
+  // ADMIN_EMAILS (optional, comma-separated) pins extra co-owner admins.
+  // Both are upserted to ADMIN. Deduped + lowercased so the same email in both
+  // vars doesn't run twice.
+  const emails = [
+    ...new Set(
+      [required("ADMIN_EMAIL"), ...(process.env.ADMIN_EMAILS ?? "").split(",")]
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+    ),
+  ];
+
+  for (const email of emails) {
+    const user = await db.user.upsert({
+      where: { email },
+      update: { role: "ADMIN" },
+      create: { email, role: "ADMIN" },
+    });
+    console.log(`✔ Admin asegurado: ${user.email} (id=${user.id}, role=${user.role})`);
+  }
 }
 
 main()
