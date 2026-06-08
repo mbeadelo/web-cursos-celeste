@@ -73,7 +73,8 @@ export default auth((req) => {
  *   - img-src 'https:' is loose — covers can come from R2, Mux thumbnails,
  *     or external URLs the admin pastes. Tighten when migrated to one host.
  *   - connect-src lists the third parties the browser talks to: Mux Data
- *     (litix), Mux HLS streams, Sentry ingest, Vercel telemetry.
+ *     (litix), Mux HLS streams, R2 (direct browser uploads via presigned PUT),
+ *     Sentry ingest, Vercel telemetry.
  *   - frame-src allows Stripe's js.stripe.com and Mux's iframe fallback.
  *   - form-action 'self' — every <form> action in the codebase posts to
  *     `/api/...` paths on our origin.
@@ -96,6 +97,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
     "font-src": "'self' data:",
     "connect-src":
       "'self' https://*.mux.com https://*.litix.io " +
+      "https://*.r2.cloudflarestorage.com " +
       "https://*.ingest.sentry.io https://*.ingest.us.sentry.io " +
       "https://*.ingest.de.sentry.io https://vitals.vercel-insights.com " +
       "wss://*.mux.com",
