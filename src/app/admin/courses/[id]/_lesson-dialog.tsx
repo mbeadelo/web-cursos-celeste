@@ -27,7 +27,7 @@ import { LessonInputSchema, type LessonInput } from "@/lib/validations/lesson";
 import {
   createLesson,
   updateLesson,
-  requestLessonFileUploadUrl,
+  requestPdfUploadUrl,
 } from "./_lessons-actions";
 
 type LessonType = "VIDEO" | "PDF" | "TEXT";
@@ -269,31 +269,24 @@ export function LessonDialog({
           {type === "PDF" && (
             <div className="space-y-1.5">
               <Label>PDF</Label>
-              {isEdit ? (
-                <PdfUpload
-                  lessonId={lesson.id}
-                  currentKey={fileKey ?? ""}
-                  storageEnabled={storageEnabled}
-                  onUploaded={(key) =>
-                    setValue("fileKey", key, { shouldDirty: true })
-                  }
-                />
-              ) : (
-                <p className="text-xs text-neutral-500">
-                  Crea la lección primero — después podrás subir el PDF desde
-                  la pantalla de edición.
-                </p>
-              )}
-              <div className="pt-2">
-                <Label htmlFor="lesson-key" className="text-xs text-neutral-500">
+              <PdfUpload
+                currentKey={fileKey ?? ""}
+                storageEnabled={storageEnabled}
+                onUploaded={(key) =>
+                  setValue("fileKey", key, { shouldDirty: true })
+                }
+              />
+              <details className="pt-2">
+                <summary className="text-xs text-neutral-500 cursor-pointer">
                   File key (avanzado)
-                </Label>
+                </summary>
                 <Input
                   id="lesson-key"
                   {...register("fileKey")}
                   placeholder="lesson-files/abc/intro.pdf"
+                  className="mt-1"
                 />
-              </div>
+              </details>
             </div>
           )}
 
@@ -329,12 +322,10 @@ export function LessonDialog({
 }
 
 function PdfUpload({
-  lessonId,
   currentKey,
   storageEnabled,
   onUploaded,
 }: {
-  lessonId: string;
   currentKey: string;
   storageEnabled: boolean;
   onUploaded: (key: string) => void;
@@ -360,8 +351,7 @@ function PdfUpload({
     setError(null);
     setProgress("signing");
 
-    const signed = await requestLessonFileUploadUrl({
-      lessonId,
+    const signed = await requestPdfUploadUrl({
       filename: file.name,
       contentType: file.type || "application/pdf",
     });

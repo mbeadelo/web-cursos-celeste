@@ -221,3 +221,34 @@ export async function requestLessonFileUploadUrl(input: {
   });
   return { ok: true, uploadUrl, key };
 }
+
+/**
+ * Like requestLessonFileUploadUrl but WITHOUT an existing lesson — lets the
+ * admin upload a PDF while *creating* a lesson (or a pack material), before the
+ * row exists. The key uses a random id as folder prefix; the resulting key is
+ * saved into lesson.fileKey when the lesson is created/updated.
+ */
+export async function requestPdfUploadUrl(input: {
+  filename: string;
+  contentType: string;
+}): Promise<LessonFileUploadResult> {
+  await ensureAdmin();
+  if (!isStorageConfigured()) {
+    return { ok: false, error: "R2 no está configurado en este entorno." };
+  }
+  if (!ALLOWED_PDF_TYPES.has(input.contentType)) {
+    return { ok: false, error: "Solo se admiten archivos PDF." };
+  }
+  if (!input.filename || input.filename.length > 200) {
+    return { ok: false, error: "Nombre de archivo inválido." };
+  }
+  const key = buildLessonFileKey({
+    lessonId: crypto.randomUUID(),
+    filename: input.filename,
+  });
+  const { uploadUrl } = await createUploadUrl({
+    key,
+    contentType: input.contentType,
+  });
+  return { ok: true, uploadUrl, key };
+}
