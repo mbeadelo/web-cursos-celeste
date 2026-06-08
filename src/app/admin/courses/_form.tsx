@@ -16,6 +16,7 @@ import { CoverUpload } from "./_cover-upload";
 const BadgeFormEnum = z.enum(["", "BESTSELLER", "NEW", "COMING_SOON"]);
 
 const FormSchema = z.object({
+  type: z.enum(["COURSE", "PACK"]),
   title: z.string().trim().min(3, "Mínimo 3 caracteres").max(200),
   slug: z.string().trim().max(100).optional().or(z.literal("")),
   description: z.string().trim().min(1, "Descripción requerida").max(5000),
@@ -43,9 +44,11 @@ type ActionResult =
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
 
 type CourseBadge = "BESTSELLER" | "NEW" | "COMING_SOON";
+type CourseType = "COURSE" | "PACK";
 
 type Props = {
   initial?: {
+    type: CourseType;
     title: string;
     slug: string;
     description: string;
@@ -58,6 +61,7 @@ type Props = {
     whatYouLearn: string | null;
   };
   action: (input: {
+    type: CourseType;
     title: string;
     slug?: string;
     description: string;
@@ -72,9 +76,17 @@ type Props = {
   }) => Promise<ActionResult | void>;
   submitLabel: string;
   storageEnabled: boolean;
+  // Lock the type selector when editing (changing type mid-life is messy).
+  lockType?: boolean;
 };
 
-export function CourseForm({ initial, action, submitLabel, storageEnabled }: Props) {
+export function CourseForm({
+  initial,
+  action,
+  submitLabel,
+  storageEnabled,
+  lockType,
+}: Props) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -87,6 +99,7 @@ export function CourseForm({ initial, action, submitLabel, storageEnabled }: Pro
   } = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
+      type: initial?.type ?? "COURSE",
       title: initial?.title ?? "",
       slug: initial?.slug ?? "",
       description: initial?.description ?? "",
@@ -103,12 +116,14 @@ export function CourseForm({ initial, action, submitLabel, storageEnabled }: Pro
 
   const published = watch("published");
   const coverUrl = watch("coverUrl");
+  const type = watch("type");
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
     setSaved(false);
     const priceCents = Math.round(Number(values.priceEuros) * 100);
     const result = await action({
+      type: values.type,
       title: values.title,
       slug: values.slug || undefined,
       description: values.description,
@@ -131,6 +146,25 @@ export function CourseForm({ initial, action, submitLabel, storageEnabled }: Pro
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
+      <Field
+        label="Tipo"
+        hint={
+          type === "PACK"
+            ? "Un pack es un conjunto de PDFs descargables. Sin fases ni vídeo. Aparece en /packs."
+            : "Un curso con lecciones (vídeo, PDF o texto), organizables en fases. Aparece en /cursos."
+        }
+        error={errors.type?.message}
+      >
+        <select
+          {...register("type")}
+          disabled={lockType}
+          className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-celeste disabled:bg-neutral-100 disabled:text-neutral-500"
+        >
+          <option value="COURSE">Curso</option>
+          <option value="PACK">Pack de materiales</option>
+        </select>
+      </Field>
+
       <Field label="Título" error={errors.title?.message}>
         <Input {...register("title")} placeholder="Marketing digital para principiantes" />
       </Field>

@@ -4,10 +4,14 @@ import slugify from "slugify";
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const CourseBadgeEnum = z.enum(["BESTSELLER", "NEW", "COMING_SOON"]);
+export const CourseTypeEnum = z.enum(["COURSE", "PACK"]);
 
 export const CourseInputSchema = z
   .object({
     title: z.string().trim().min(3, "Mínimo 3 caracteres").max(200),
+    // COURSE (default) or PACK (bundle of PDFs). Drives admin UI, public
+    // section (/cursos vs /packs) and student rendering.
+    type: CourseTypeEnum.default("COURSE"),
     slug: z
       .string()
       .trim()

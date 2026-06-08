@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { CourseForm } from "../_form";
 import { updateCourse } from "../_actions";
 import { LessonsList } from "./_lessons-list";
+import { ModulesManager } from "./_modules-manager";
 import { isStorageConfigured } from "@/lib/storage";
 import { isMuxConfigured } from "@/lib/mux";
 
@@ -20,6 +21,10 @@ export default async function EditCoursePage({
   const course = await db.course.findUnique({
     where: { id },
     include: {
+      modules: {
+        orderBy: { order: "asc" },
+        select: { id: true, title: true },
+      },
       lessons: {
         orderBy: { order: "asc" },
         select: {
@@ -27,6 +32,7 @@ export default async function EditCoursePage({
           order: true,
           title: true,
           type: true,
+          moduleId: true,
           muxPlaybackId: true,
           fileKey: true,
           body: true,
@@ -35,6 +41,8 @@ export default async function EditCoursePage({
     },
   });
   if (!course) notFound();
+
+  const isPack = course.type === "PACK";
 
   async function action(input: Parameters<typeof updateCourse>[1]) {
     "use server";
@@ -61,6 +69,7 @@ export default async function EditCoursePage({
           <h2 className="text-lg font-semibold">Datos del curso</h2>
           <CourseForm
             initial={{
+              type: course.type,
               title: course.title,
               slug: course.slug,
               description: course.description,
@@ -75,15 +84,24 @@ export default async function EditCoursePage({
             action={action}
             submitLabel="Guardar cambios"
             storageEnabled={isStorageConfigured()}
+            lockType
           />
         </section>
+
+        {!isPack && (
+          <section className="space-y-4 pt-6 border-t border-neutral-200">
+            <ModulesManager courseId={course.id} modules={course.modules} />
+          </section>
+        )}
 
         <section className="space-y-4 pt-6 border-t border-neutral-200">
           <LessonsList
             courseId={course.id}
             initialLessons={course.lessons}
+            modules={isPack ? [] : course.modules}
             storageEnabled={isStorageConfigured()}
             muxConfigured={isMuxConfigured()}
+            pdfOnly={isPack}
           />
         </section>
       </div>

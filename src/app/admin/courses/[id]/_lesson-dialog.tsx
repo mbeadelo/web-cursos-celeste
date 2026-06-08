@@ -36,6 +36,7 @@ type ExistingLesson = {
   id: string;
   type: LessonType;
   title: string;
+  moduleId: string | null;
   muxPlaybackId: string | null;
   fileKey: string | null;
   body: string | null;
@@ -46,15 +47,20 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lesson?: ExistingLesson;
+  /** Modules/fases of the course, for the "Fase" selector. Empty = packs/flat. */
+  modules: { id: string; title: string }[];
   /** When true the admin can upload PDFs directly to R2 from the dialog. */
   storageEnabled: boolean;
   /** When true the admin can upload videos directly to Mux from the dialog. */
   muxConfigured: boolean;
+  /** When true (packs) only PDF lessons are allowed. */
+  pdfOnly?: boolean;
 };
 
 const FormSchema = z.object({
   type: z.enum(["VIDEO", "PDF", "TEXT"]),
   title: z.string().trim().min(2, "Mínimo 2 caracteres").max(200),
+  moduleId: z.string().optional(),
   muxPlaybackId: z.string().trim().max(200).optional().or(z.literal("")),
   fileKey: z.string().trim().max(500).optional().or(z.literal("")),
   body: z.string().trim().max(20000).optional().or(z.literal("")),
@@ -67,11 +73,14 @@ export function LessonDialog({
   open,
   onOpenChange,
   lesson,
+  modules,
   storageEnabled,
   muxConfigured,
+  pdfOnly,
 }: Props) {
   const isEdit = !!lesson;
   const [serverError, setServerError] = useState<string | null>(null);
+  const defaultType: LessonType = pdfOnly ? "PDF" : "VIDEO";
 
   const {
     register,
@@ -83,8 +92,9 @@ export function LessonDialog({
   } = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      type: lesson?.type ?? "VIDEO",
+      type: lesson?.type ?? defaultType,
       title: lesson?.title ?? "",
+      moduleId: lesson?.moduleId ?? "",
       muxPlaybackId: lesson?.muxPlaybackId ?? "",
       fileKey: lesson?.fileKey ?? "",
       body: lesson?.body ?? "",
@@ -93,16 +103,18 @@ export function LessonDialog({
 
   useEffect(() => {
     reset({
-      type: lesson?.type ?? "VIDEO",
+      type: lesson?.type ?? defaultType,
       title: lesson?.title ?? "",
+      moduleId: lesson?.moduleId ?? "",
       muxPlaybackId: lesson?.muxPlaybackId ?? "",
       fileKey: lesson?.fileKey ?? "",
       body: lesson?.body ?? "",
     });
     setServerError(null);
-  }, [lesson, reset]);
+  }, [lesson, reset, defaultType]);
 
   const type = watch("type");
+  const moduleId = watch("moduleId");
   const fileKey = watch("fileKey");
   const muxPlaybackId = watch("muxPlaybackId");
   const body = watch("body");
@@ -110,23 +122,27 @@ export function LessonDialog({
   async function onSubmit(values: FormValues) {
     setServerError(null);
 
+    const moduleId = values.moduleId || undefined;
     let payload: LessonInput;
     if (values.type === "VIDEO") {
       payload = {
         type: "VIDEO",
         title: values.title,
+        moduleId,
         muxPlaybackId: values.muxPlaybackId ?? "",
       };
     } else if (values.type === "PDF") {
       payload = {
         type: "PDF",
         title: values.title,
+        moduleId,
         fileKey: values.fileKey ?? "",
       };
     } else {
       payload = {
         type: "TEXT",
         title: values.title,
+        moduleId,
         body: values.body ?? "",
       };
     }
@@ -160,24 +176,26 @@ export function LessonDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="lesson-type">Tipo</Label>
-            <Select
-              value={type}
-              onValueChange={(v) =>
-                setValue("type", v as LessonType, { shouldDirty: true })
-              }
-            >
-              <SelectTrigger id="lesson-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="VIDEO">Vídeo</SelectItem>
-                <SelectItem value="PDF">PDF</SelectItem>
-                <SelectItem value="TEXT">Texto</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {!pdfOnly && (
+            <div className="space-y-1.5">
+              <Label htmlFor="lesson-type">Tipo</Label>
+              <Select
+                value={type}
+                onValueChange={(v) =>
+                  setValue("type", v as LessonType, { shouldDirty: true })
+                }
+              >
+                <SelectTrigger id="lesson-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="VIDEO">Vídeo</SelectItem>
+                  <SelectItem value="PDF">PDF</SelectItem>
+                  <SelectItem value="TEXT">Texto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="lesson-title">Título</Label>
@@ -186,6 +204,32 @@ export function LessonDialog({
               <p className="text-xs text-red-600">{errors.title.message}</p>
             )}
           </div>
+
+          {modules.length > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="lesson-module">Fase</Label>
+              <Select
+                value={moduleId || "none"}
+                onValueChange={(v) =>
+                  setValue("moduleId", v && v !== "none" ? v : "", {
+                    shouldDirty: true,
+                  })
+                }
+              >
+                <SelectTrigger id="lesson-module">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin fase</SelectItem>
+                  {modules.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {type === "VIDEO" && (
             <div className="space-y-1.5">

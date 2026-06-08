@@ -38,6 +38,7 @@ type Lesson = {
   order: number;
   title: string;
   type: LessonType;
+  moduleId: string | null;
   muxPlaybackId: string | null;
   fileKey: string | null;
   body: string | null;
@@ -52,14 +53,20 @@ const typeLabels: Record<LessonType, string> = {
 export function LessonsList({
   courseId,
   initialLessons,
+  modules,
   storageEnabled,
   muxConfigured,
+  pdfOnly,
 }: {
   courseId: string;
   initialLessons: Lesson[];
+  modules: { id: string; title: string }[];
   storageEnabled: boolean;
   muxConfigured: boolean;
+  pdfOnly?: boolean;
 }) {
+  const moduleTitle = (id: string | null) =>
+    id ? (modules.find((m) => m.id === id)?.title ?? null) : null;
   // useOptimistic: shows the dragged-to order immediately, then resets to
   // the server-truth (initialLessons) once the server action revalidates.
   const [lessons, setOptimisticLessons] = useOptimistic<Lesson[], Lesson[]>(
@@ -98,12 +105,15 @@ export function LessonsList({
     <div className="space-y-4">
       <div className="flex items-baseline justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Lecciones</h2>
+          <h2 className="text-lg font-semibold">{pdfOnly ? "Materiales (PDF)" : "Lecciones"}</h2>
           <p className="text-sm text-neutral-600">
-            {lessons.length} lección{lessons.length === 1 ? "" : "es"}. Arrastra para reordenar.
+            {lessons.length} {pdfOnly ? "material" : "lección"}
+            {lessons.length === 1 ? "" : pdfOnly ? "es" : "es"}. Arrastra para reordenar.
           </p>
         </div>
-        <Button onClick={() => setAddOpen(true)}>Añadir lección</Button>
+        <Button onClick={() => setAddOpen(true)}>
+          {pdfOnly ? "Añadir PDF" : "Añadir lección"}
+        </Button>
       </div>
 
       {lessons.length === 0 ? (
@@ -123,6 +133,7 @@ export function LessonsList({
                   key={l.id}
                   lesson={l}
                   index={i + 1}
+                  moduleLabel={moduleTitle(l.moduleId)}
                   onEdit={() => setEditing(l)}
                   onDelete={() => setDeleting(l)}
                 />
@@ -136,8 +147,10 @@ export function LessonsList({
         courseId={courseId}
         open={addOpen}
         onOpenChange={setAddOpen}
+        modules={modules}
         storageEnabled={storageEnabled}
         muxConfigured={muxConfigured}
+        pdfOnly={pdfOnly}
       />
 
       <LessonDialog
@@ -145,8 +158,10 @@ export function LessonsList({
         open={!!editing}
         onOpenChange={(o) => !o && setEditing(null)}
         lesson={editing ?? undefined}
+        modules={modules}
         storageEnabled={storageEnabled}
         muxConfigured={muxConfigured}
+        pdfOnly={pdfOnly}
       />
 
       <DeleteLessonDialog
@@ -160,11 +175,13 @@ export function LessonsList({
 function LessonRow({
   lesson,
   index,
+  moduleLabel,
   onEdit,
   onDelete,
 }: {
   lesson: Lesson;
   index: number;
+  moduleLabel: string | null;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -195,6 +212,11 @@ function LessonRow({
         {typeLabels[lesson.type]}
       </span>
       <span className="flex-1 font-medium">{lesson.title}</span>
+      {moduleLabel && (
+        <span className="text-[11px] rounded-full bg-brand-celeste/10 text-brand-celeste-deep px-2 py-0.5 max-w-[160px] truncate">
+          {moduleLabel}
+        </span>
+      )}
       <Button variant="ghost" size="sm" onClick={onEdit}>
         <Pencil className="size-3.5" />
         <span className="sr-only">Editar</span>

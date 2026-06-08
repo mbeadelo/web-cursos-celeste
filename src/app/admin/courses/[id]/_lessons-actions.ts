@@ -22,12 +22,15 @@ async function ensureAdmin(): Promise<void> {
 }
 
 function mapInputToData(input: LessonInput) {
+  // Empty string / undefined → null (loose lesson, no fase).
+  const moduleId = input.moduleId && input.moduleId.length > 0 ? input.moduleId : null;
   // Each variant carries different fields; persist only the relevant ones.
   switch (input.type) {
     case "VIDEO":
       return {
         type: "VIDEO" as const,
         title: input.title,
+        moduleId,
         muxPlaybackId: input.muxPlaybackId,
         fileKey: null,
         body: null,
@@ -36,6 +39,7 @@ function mapInputToData(input: LessonInput) {
       return {
         type: "PDF" as const,
         title: input.title,
+        moduleId,
         fileKey: input.fileKey,
         muxPlaybackId: null,
         body: null,
@@ -44,6 +48,7 @@ function mapInputToData(input: LessonInput) {
       return {
         type: "TEXT" as const,
         title: input.title,
+        moduleId,
         body: input.body,
         muxPlaybackId: null,
         fileKey: null,
