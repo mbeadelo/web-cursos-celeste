@@ -7,7 +7,7 @@ type Props = {
 
 export function AboutMe({ eyebrow, title, body, image }: Props) {
   return (
-    <section className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-8 md:gap-12 items-center">
+    <section className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-8 md:gap-12 items-start">
       <div className="relative mx-auto md:mx-0">
         <div
           aria-hidden
