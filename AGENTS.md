@@ -40,7 +40,7 @@ pnpm exec prisma studio                        # GUI de la base de datos
 pnpm exec prisma generate                      # regenerar cliente tras editar schema
 pnpm exec prisma format                        # formatear schema.prisma
 pnpm exec prisma dev                           # Postgres local efímero (alternativa a Neon)
-pnpm db:seed                                   # ejecutar prisma/seed.ts (upsertea ADMIN_EMAIL)
+pnpm db:seed                                   # ejecutar prisma/seed.ts (upsertea ADMIN_EMAIL + ADMIN_EMAILS como ADMIN)
 
 # Auth.js — generar AUTH_SECRET (cualquiera de las dos)
 pnpm dlx auth secret                           # método oficial Auth.js v5
@@ -68,7 +68,8 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 
 - **Sesión JWT** (no DB sessions). El rol se persiste en el token tras el primer login y en cada `update`. Si cambias el rol de un usuario en DB, su JWT no refleja el cambio hasta que el token rote (24 h por defecto).
 - **Edge proxy** (`src/proxy.ts` — en Next 16, antes `middleware.ts`) usa `auth.config.ts` (sin adapter Prisma) para gating sin tocar DB. **Debe vivir en `src/proxy.ts`** (cuando hay carpeta `src/`); en raíz se ignora silenciosamente.
-- **Defense in depth**: además del proxy, cada layout server-side (`src/app/admin/layout.tsx`) revalida la sesión y rol con `auth()`.
+- ⚠️ **El gating del proxy es MANUAL** (lee `req.auth` e inspecciona `pathname` dentro de la función). NextAuth v5 **NO ejecuta `callbacks.authorized`** cuando el middleware se envuelve con una función propia (lo hacemos, para el CSP) — sería código muerto. Por eso `auth.config.ts` no tiene `authorized`. Ver [issue #12976](https://github.com/nextauthjs/next-auth/issues/12976). Si añades rutas protegidas nuevas, **actualiza el gating en `proxy.ts`**, no un `authorized` callback.
+- **Defense in depth**: además del proxy, cada zona protegida revalida server-side con `auth()` — `/admin` en su layout (`src/app/admin/layout.tsx`), `/dashboard` en cada `page.tsx`. Ninguna de las dos capas debe ser la única: el proxy es la red de seguridad ante un olvido server-side, y viceversa.
 - Acceso a contenido por `Enrollment`. Helper `canAccessLesson(userId, lessonId)` en `src/lib/access.ts` (Fase 4).
 - Tras refund (webhook `charge.refunded`): borrar `Enrollment` correspondiente.
 
@@ -137,6 +138,8 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 - **Vercel**: deploy automático desde `main`. PR → preview deploy con DB branch separada en Neon.
 - **Migraciones en build**: añadir `prisma migrate deploy && next build` como build command en Vercel.
 - **Variables**: gestionadas en el dashboard de Vercel; sincronizadas con `vercel env pull` en local si hace falta.
+- **Scope de las env vars**: las credenciales de servicios externos con estado o cuota (Upstash, Mux, R2, Stripe) van **solo en Production**, no en Preview. Compartirlas haría que los preview deploys escriban en el recurso real (contadores de rate limit, assets de Mux, ficheros de R2) y consuman cuota. El código degrada limpio sin ellas (`is*Configured()` → `false`). Si algún día hace falta probar uno de estos servicios en un preview, usar un entorno/credencial aparte (p. ej. el entorno *Development* de Mux), nunca las claves de prod.
+- **Las env vars no se aplican retroactivamente**: tras añadir o cambiar una variable hay que **redeploy** para que entre en vigor.
 
 ## Riesgos conocidos
 
