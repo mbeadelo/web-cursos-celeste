@@ -39,6 +39,15 @@ enum CourseBadge {
   COMING_SOON
 }
 
+// A Course row is either a real course (with lessons, optionally grouped into
+// modules/fases and including video) or a PACK: a bundle of downloadable
+// materials (PDFs) sold as a single product. Both reuse the same sales engine
+// (Order/Enrollment/Stripe) — a Pack is just a Course with type=PACK.
+enum CourseType {
+  COURSE
+  PACK
+}
+
 enum ReviewStatus {
   PENDING
   APPROVED
@@ -73,6 +82,9 @@ model Course {
   priceCents     Int
   currency       String       @default("eur")
   published      Boolean      @default(false)
+  // COURSE (default) vs PACK. PACK = bundle of PDFs, no modules/video, shown
+  // under /packs instead of /cursos. Same Order/Enrollment flow.
+  type           CourseType   @default(COURSE)
   coverUrl       String?
   // Optional manual marketing badge shown on cards and the landing page.
   // Manual on purpose: with a small catalogue an automatic "best seller"
@@ -91,15 +103,40 @@ model Course {
   updatedAt      DateTime     @updatedAt
 
   lessons     Lesson[]
+  modules     Module[]
   enrollments Enrollment[]
   orders      Order[]
   reviews     Review[]
+}
+
+// A "fase"/módulo: an ordered group of lessons inside a course. Optional —
+// lessons can hang directly off the course (moduleId NULL) for packs and for
+// flat courses. Deleting a module orphans its lessons (SetNull) rather than
+// destroying their video/PDF content.
+model Module {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  order     Int
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lessons Lesson[]
+
+  @@unique([courseId, order])
+  @@index([courseId])
 }
 
 model Lesson {
   id            String     @id @default(cuid())
   courseId      String
   course        Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  // Optional grouping into a module/fase. NULL = loose lesson (packs, or
+  // courses without fases). Order is managed app-side within its container
+  // (module if set, else course), so the old global unique was relaxed.
+  moduleId      String?
+  module        Module?    @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   order         Int
   title         String
   type          LessonType
@@ -118,8 +155,8 @@ model Lesson {
 
   progress LessonProgress[]
 
-  @@unique([courseId, order])
   @@index([courseId])
+  @@index([moduleId])
 }
 
 model Enrollment {
