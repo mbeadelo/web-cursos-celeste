@@ -38,6 +38,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
+    // Inherit the edge-safe `session` callback from authConfig so role mapping
+    // is defined in exactly one place (and the proxy and full config agree).
+    ...authConfig.callbacks,
     async signIn({ user }) {
       // Defense in depth: even if the API is hit directly (bypassing our
       // /login server action), reject unknown emails before sending the
@@ -67,12 +70,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return token;
     },
-    async session({ session, token }) {
-      if (session.user && token.id) {
-        session.user.id = token.id;
-        session.user.role = token.role ?? "STUDENT";
-      }
-      return session;
-    },
+    // `session` callback is inherited from authConfig (see spread above).
   },
 });

@@ -18,4 +18,19 @@ export const authConfig = {
   session: { strategy: "jwt" },
   // Providers configured in the full config (auth.ts) where env is validated.
   providers: [],
+  callbacks: {
+    // Edge-safe: maps the decoded JWT onto the session object. This MUST live
+    // here (not only in auth.ts) because the proxy builds `req.auth` from THIS
+    // config. Without it, `session.user.role` is undefined in the edge and the
+    // proxy's role gating would bounce legitimate admins out of /admin.
+    // No DB access here → stays edge-safe. (The DB-aware `jwt` callback that
+    // refreshes the role on `update` lives in auth.ts.)
+    session({ session, token }) {
+      if (session.user && token.id) {
+        session.user.id = token.id;
+        session.user.role = token.role ?? "STUDENT";
+      }
+      return session;
+    },
+  },
 } satisfies NextAuthConfig;
