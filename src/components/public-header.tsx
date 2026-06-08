@@ -25,6 +25,12 @@ export async function PublicHeader() {
             Cursos
           </Link>
           <Link
+            href="/packs"
+            className="text-neutral-600 hover:text-brand-celeste-deep transition"
+          >
+            Packs
+          </Link>
+          <Link
             href="/articulos"
             className="text-neutral-600 hover:text-brand-celeste-deep transition"
           >

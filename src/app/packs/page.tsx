@@ -7,8 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CourseBadge } from "@/components/course-badge";
 
 export const metadata: Metadata = {
-  title: "Cursos",
-  description: "Catálogo de cursos online en Bienvenido a tu plaza.",
+  title: "Packs",
+  description:
+    "Packs de materiales descargables (PDFs) en Bienvenido a tu plaza.",
 };
 
 const formatter = new Intl.NumberFormat("es-ES", {
@@ -16,12 +17,9 @@ const formatter = new Intl.NumberFormat("es-ES", {
   currency: "EUR",
 });
 
-export default async function CursosPage() {
-  // Ordering: manual featuredOrder asc (nulls last), then most recent first.
-  // Postgres treats NULLs as "greater than" with `asc nulls last` which is the
-  // ergonomic default for "pinned vs unpinned".
-  const courses = await db.course.findMany({
-    where: { published: true, type: "COURSE" },
+export default async function PacksPage() {
+  const packs = await db.course.findMany({
+    where: { published: true, type: "PACK" },
     orderBy: [
       { featuredOrder: { sort: "asc", nulls: "last" } },
       { createdAt: "desc" },
@@ -43,17 +41,17 @@ export default async function CursosPage() {
       <main className="flex-1 px-6 py-12">
         <div className="max-w-6xl mx-auto space-y-8">
           <header className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Cursos</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Packs</h1>
             <p className="text-neutral-600">
-              {courses.length === 0
-                ? "Pronto añadiremos cursos."
-                : `${courses.length} curso${courses.length === 1 ? "" : "s"} disponible${courses.length === 1 ? "" : "s"}.`}
+              {packs.length === 0
+                ? "Pronto añadiremos packs de materiales."
+                : `${packs.length} pack${packs.length === 1 ? "" : "s"} de materiales descargables.`}
             </p>
           </header>
 
-          {courses.length > 0 && (
+          {packs.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses.map((c) => (
+              {packs.map((c) => (
                 <Link
                   key={c.id}
                   href={`/cursos/${c.slug}`}
@@ -69,7 +67,7 @@ export default async function CursosPage() {
                           className="w-full aspect-[16/9] object-cover"
                         />
                       ) : (
-                        <div className="w-full aspect-[16/9] bg-gradient-to-br from-brand-celeste/20 to-brand-magenta/20" />
+                        <div className="w-full aspect-[16/9] bg-gradient-to-br from-brand-magenta/20 to-brand-celeste/20" />
                       )}
                       <CourseBadge badge={c.badge} floating />
                     </div>
