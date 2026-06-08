@@ -38,7 +38,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    ...authConfig.callbacks,
     async signIn({ user }) {
       // Defense in depth: even if the API is hit directly (bypassing our
       // /login server action), reject unknown emails before sending the

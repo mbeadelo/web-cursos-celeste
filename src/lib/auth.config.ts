@@ -1,8 +1,14 @@
 import type { NextAuthConfig } from "next-auth";
 
 // Edge-safe Auth.js config: no database adapter, no Node-only deps.
-// Imported by middleware.ts to gate routes without hitting the DB.
-// The full config in auth.ts extends this with the Prisma adapter.
+// Imported by the edge proxy (src/proxy.ts) to resolve the JWT session without
+// hitting the DB. The full config in auth.ts extends this with the Prisma
+// adapter and the jwt/session/signIn callbacks.
+//
+// NOTE: there is intentionally NO `authorized` callback here. NextAuth v5 does
+// not invoke it when the proxy wraps the middleware with a custom function (it
+// does, for CSP), so route gating is done manually in src/proxy.ts instead.
+// See https://github.com/nextauthjs/next-auth/issues/12976.
 
 export const authConfig = {
   pages: {
@@ -11,17 +17,5 @@ export const authConfig = {
   },
   session: { strategy: "jwt" },
   // Providers configured in the full config (auth.ts) where env is validated.
-  // Middleware doesn't need providers — only authorized() and pages.
   providers: [],
-  callbacks: {
-    authorized({ request, auth }) {
-      const { pathname } = request.nextUrl;
-      const isLoggedIn = !!auth;
-      const isAdmin = auth?.user?.role === "ADMIN";
-
-      if (pathname.startsWith("/admin")) return isAdmin;
-      if (pathname.startsWith("/dashboard")) return isLoggedIn;
-      return true;
-    },
-  },
 } satisfies NextAuthConfig;

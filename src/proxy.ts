@@ -7,9 +7,11 @@ const { auth } = NextAuth(authConfig);
 /**
  * Edge proxy (renamed from "middleware" in Next.js 16). Two responsibilities:
  *
- *   1. Auth gating — delegates to `authConfig.callbacks.authorized`. If a
- *      protected route is accessed without the required role, NextAuth
- *      returns a redirect to the signIn page from inside the wrapper.
+ *   1. Auth gating — done MANUALLY here off `req.auth`. NextAuth v5 does NOT
+ *      invoke `authConfig.callbacks.authorized` when the middleware is wrapped
+ *      with a custom function (as it is here, for the CSP). The callback would
+ *      be dead code, so the gating lives inline below instead. See
+ *      https://github.com/nextauthjs/next-auth/issues/12976.
  *   2. Content-Security-Policy with a fresh per-request nonce. Next.js
  *      auto-applies the nonce to every script it injects (framework runtime,
  *      page bundles, inline styles) when it sees the
@@ -23,6 +25,28 @@ const { auth } = NextAuth(authConfig);
  * Moving it elsewhere silently disables the proxy in Next 16.
  */
 export default auth((req) => {
+  // ── Auth gating (manual — see note above) ───────────────────────
+  // `req.auth` is the JWT session injected by the NextAuth wrapper. We mirror
+  // the server-side checks in the route layouts so the proxy is a real second
+  // layer of defense, not just CSP. A request to a protected route with the
+  // wrong (or no) session is redirected before any page code runs.
+  const { pathname } = req.nextUrl;
+  const isLoggedIn = !!req.auth;
+  const isAdmin = req.auth?.user?.role === "ADMIN";
+
+  if (pathname.startsWith("/admin") && !isAdmin) {
+    // Not admin: send logged-in users to their dashboard, anonymous to login.
+    const dest = isLoggedIn ? "/dashboard" : "/login";
+    const url = new URL(dest, req.nextUrl.origin);
+    if (dest === "/login") url.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(url);
+  }
+  if (pathname.startsWith("/dashboard") && !isLoggedIn) {
+    const url = new URL("/login", req.nextUrl.origin);
+    url.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(url);
+  }
+
   const nonce = btoa(
     String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16)))
   );
