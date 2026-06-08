@@ -14,67 +14,9 @@ type Card = {
   title: string;
   description: string;
   priceCents: number;
-  coverUrl: string;
-  isDemo: boolean;
+  coverUrl: string | null;
   badge: Badge | null;
 };
-
-const demos: Card[] = [
-  {
-    href: "/cursos",
-    title: "Curso de demostración 1",
-    description: "Un curso de ejemplo mientras se publica el catálogo real.",
-    priceCents: 4900,
-    coverUrl: "/demo/course-1.jpg",
-    isDemo: true,
-    badge: null,
-  },
-  {
-    href: "/cursos",
-    title: "Curso de demostración 2",
-    description: "Lecciones grabadas y material descargable para practicar.",
-    priceCents: 6900,
-    coverUrl: "/demo/course-2.jpg",
-    isDemo: true,
-    badge: null,
-  },
-  {
-    href: "/cursos",
-    title: "Curso de demostración 3",
-    description: "Aprende paso a paso a tu propio ritmo, con acceso ilimitado.",
-    priceCents: 8900,
-    coverUrl: "/demo/course-3.jpg",
-    isDemo: true,
-    badge: null,
-  },
-  {
-    href: "/cursos",
-    title: "Curso de demostración 4",
-    description: "Contenido directo y aplicable. Sin relleno.",
-    priceCents: 5900,
-    coverUrl: "/demo/course-4.jpg",
-    isDemo: true,
-    badge: null,
-  },
-  {
-    href: "/cursos",
-    title: "Curso de demostración 5",
-    description: "Diseñado para quienes empiezan, útil también si ya tienes base.",
-    priceCents: 7900,
-    coverUrl: "/demo/course-5.jpg",
-    isDemo: true,
-    badge: null,
-  },
-  {
-    href: "/cursos",
-    title: "Curso de demostración 6",
-    description: "Comunidad activa y resolución de dudas semanales.",
-    priceCents: 9900,
-    coverUrl: "/demo/course-6.jpg",
-    isDemo: true,
-    badge: null,
-  },
-];
 
 export async function FeaturedCourses() {
   const real = await db.course.findMany({
@@ -99,13 +41,25 @@ export async function FeaturedCourses() {
     title: c.title,
     description: c.description,
     priceCents: c.priceCents,
-    coverUrl: c.coverUrl ?? "/demo/course-1.jpg",
-    isDemo: false,
+    coverUrl: c.coverUrl,
     badge: c.badge,
   }));
 
-  // Fill with demos so the carousel always feels populated.
-  const filled = [...cards, ...demos.slice(0, Math.max(0, 6 - cards.length))];
+  // No published courses yet → gentle placeholder instead of an empty carousel.
+  if (cards.length === 0) {
+    return (
+      <section className="space-y-6">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Cursos destacados
+          </h2>
+          <p className="text-neutral-600 mt-1">
+            Estamos preparando los primeros cursos. Vuelve pronto.
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-6">
@@ -136,26 +90,27 @@ export async function FeaturedCourses() {
           [&::-webkit-scrollbar-thumb]:rounded-full
         "
       >
-        {filled.map((c, idx) => (
+        {cards.map((c, idx) => (
           <Link
             key={`${c.title}-${idx}`}
             href={c.href}
             className="group snap-start shrink-0 w-72 sm:w-80 rounded-xl bg-white ring-1 ring-foreground/10 overflow-hidden transition hover:ring-brand-celeste/50 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-celeste"
           >
             <div className="relative aspect-[16/9] overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={c.coverUrl}
-                alt=""
-                className="w-full h-full object-cover transition group-hover:scale-[1.03]"
-              />
-              {c.isDemo ? (
-                <span className="absolute top-2 left-2 rounded-full bg-white/90 backdrop-blur text-[10px] uppercase tracking-wide px-2 py-0.5 text-neutral-700">
-                  Demo
-                </span>
+              {c.coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.coverUrl}
+                  alt=""
+                  className="w-full h-full object-cover transition group-hover:scale-[1.03]"
+                />
               ) : (
-                <CourseBadge badge={c.badge} floating />
+                <div
+                  aria-hidden
+                  className="w-full h-full bg-gradient-to-br from-brand-celeste/30 to-brand-magenta/30"
+                />
               )}
+              <CourseBadge badge={c.badge} floating />
             </div>
             <div className="p-4 space-y-1.5">
               <h3 className="font-semibold leading-tight line-clamp-2">
