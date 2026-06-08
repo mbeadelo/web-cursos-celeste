@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { SITE_CONTENT_KEYS, type SiteContentKey } from "@/lib/site-content-keys";
+import {
+  isStorageConfigured,
+  buildSiteImageKey,
+  createUploadUrl,
+} from "@/lib/storage";
 
 type ActionResult = { ok: true; updated: number } | { ok: false; error: string };
 
@@ -51,6 +56,40 @@ export async function saveSiteContent(formData: FormData): Promise<ActionResult>
   revalidatePath("/admin/contenido");
 
   return { ok: true, updated: updates.length };
+}
+
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/gif",
+]);
+
+type ImageUploadResult =
+  | { ok: true; uploadUrl: string; publicUrl: string; key: string }
+  | { ok: false; error: string };
+
+export async function requestSiteImageUploadUrl(input: {
+  filename: string;
+  contentType: string;
+}): Promise<ImageUploadResult> {
+  await ensureAdmin();
+  if (!isStorageConfigured()) {
+    return { ok: false, error: "R2 no está configurado en este entorno." };
+  }
+  if (!ALLOWED_IMAGE_TYPES.has(input.contentType)) {
+    return { ok: false, error: "Formato no soportado. Usa JPG, PNG, WebP, AVIF o GIF." };
+  }
+  if (!input.filename || input.filename.length > 200) {
+    return { ok: false, error: "Nombre de archivo inválido." };
+  }
+  const key = buildSiteImageKey(input.filename);
+  const { uploadUrl, publicUrl } = await createUploadUrl({
+    key,
+    contentType: input.contentType,
+  });
+  return { ok: true, uploadUrl, publicUrl, key };
 }
 
 export async function resetSiteContentKey(

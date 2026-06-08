@@ -2,9 +2,10 @@ type Props = {
   eyebrow: string;
   title: string;
   body: string; // HTML from TipTap or plain default
+  image: string; // portrait URL (R2, external, or local default)
 };
 
-export function AboutMe({ eyebrow, title, body }: Props) {
+export function AboutMe({ eyebrow, title, body, image }: Props) {
   return (
     <section className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-8 md:gap-12 items-center">
       <div className="relative mx-auto md:mx-0">
@@ -14,7 +15,7 @@ export function AboutMe({ eyebrow, title, body }: Props) {
         />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/demo/portrait.jpg"
+          src={image}
           alt="Retrato de la persona detrás de Bienvenido a tu plaza"
           className="relative size-48 md:size-56 rounded-full object-cover ring-4 ring-white shadow-lg"
         />

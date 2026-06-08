@@ -6,15 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RichEditor } from "@/components/rich-editor";
+import { ImageField } from "./_image-field";
 import { SITE_CONTENT_KEYS, type SiteContentKey } from "@/lib/site-content-keys";
 import { saveSiteContent, resetSiteContentKey } from "./_actions";
 
 type Props = {
   values: Record<string, string>; // current value (or default) for each key
   hasOverride: Record<string, boolean>; // true if a row exists in SiteContent
+  storageEnabled: boolean; // R2 configured → allow file uploads for image keys
 };
 
-export function SiteContentForm({ values, hasOverride }: Props) {
+export function SiteContentForm({ values, hasOverride, storageEnabled }: Props) {
   const [pending, start] = useTransition();
   const [feedback, setFeedback] = useState<
     | { kind: "ok"; updated: number }
@@ -22,21 +24,22 @@ export function SiteContentForm({ values, hasOverride }: Props) {
     | null
   >(null);
 
-  // Local state for rich keys (TipTap is uncontrolled by FormData natively).
-  // Plain text keys read straight from the form on submit.
-  const richKeys = (Object.keys(SITE_CONTENT_KEYS) as SiteContentKey[]).filter(
-    (k) => SITE_CONTENT_KEYS[k].type === "rich"
+  // `rich` (TipTap) and `image` (upload widget) keys are controlled by local
+  // state — neither binds to FormData natively, so we inject them on submit.
+  // Plain `text` keys read straight from the form.
+  const controlledKeys = (Object.keys(SITE_CONTENT_KEYS) as SiteContentKey[]).filter(
+    (k) => SITE_CONTENT_KEYS[k].type !== "text"
   );
-  const [richState, setRichState] = useState<Record<string, string>>(() => {
+  const [controlled, setControlled] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
-    for (const k of richKeys) init[k] = values[k] ?? "";
+    for (const k of controlledKeys) init[k] = values[k] ?? "";
     return init;
   });
 
   function onSubmit(formData: FormData) {
-    // Inject rich values into the FormData (TipTap doesn't bind to native form).
-    for (const k of richKeys) {
-      formData.set(k, richState[k] ?? "");
+    // Inject controlled (rich/image) values; they don't bind to the native form.
+    for (const k of controlledKeys) {
+      formData.set(k, controlled[k] ?? "");
     }
     start(async () => {
       const result = await saveSiteContent(formData);
@@ -75,8 +78,8 @@ export function SiteContentForm({ values, hasOverride }: Props) {
                       keyName={key}
                       onReset={() => {
                         // Optimistic — rerender from server happens via revalidate
-                        if (meta.type === "rich") {
-                          setRichState((s) => ({ ...s, [key]: meta.default }));
+                        if (meta.type !== "text") {
+                          setControlled((s) => ({ ...s, [key]: meta.default }));
                         }
                       }}
                     />
@@ -93,11 +96,19 @@ export function SiteContentForm({ values, hasOverride }: Props) {
                   ) : (
                     <Input id={key} name={key} defaultValue={values[key] ?? ""} />
                   )
+                ) : meta.type === "image" ? (
+                  <ImageField
+                    value={controlled[key] ?? ""}
+                    onChange={(v) =>
+                      setControlled((s) => ({ ...s, [key]: v }))
+                    }
+                    storageEnabled={storageEnabled}
+                  />
                 ) : (
                   <RichEditor
-                    value={richState[key] ?? ""}
+                    value={controlled[key] ?? ""}
                     onChange={(v) =>
-                      setRichState((s) => ({ ...s, [key]: v }))
+                      setControlled((s) => ({ ...s, [key]: v }))
                     }
                     placeholder={meta.hint}
                   />
@@ -107,7 +118,7 @@ export function SiteContentForm({ values, hasOverride }: Props) {
                 )}
                 {!hasOverride[key] && (
                   <p className="text-xs text-neutral-400">
-                    Mostrando el texto por defecto. Edita para sobrescribir.
+                    Mostrando el contenido por defecto. Edita para sobrescribir.
                   </p>
                 )}
               </div>

@@ -102,6 +102,15 @@ export function buildCoverKey(filename: string): string {
 }
 
 /**
+ * Build a key for a site-content image (e.g. the "Sobre mí" portrait edited
+ * from /admin/contenido). Stored under `site/` to keep them apart from course
+ * covers when listing the bucket.
+ */
+export function buildSiteImageKey(filename: string): string {
+  return buildKey("site", filename);
+}
+
+/**
  * Build a key for a lesson file (PDF). Stored under `lesson-files/<lessonId>/`
  * so files are obviously associated with their lesson when listing the bucket.
  */

@@ -4,6 +4,7 @@ import {
   type SiteContentKey,
   getAllContent,
 } from "@/lib/site-content";
+import { isStorageConfigured } from "@/lib/storage";
 import { SiteContentForm } from "./_form";
 
 export const metadata: Metadata = { title: "Contenido" };
@@ -25,11 +26,15 @@ export default async function AdminContenidoPage() {
         <header>
           <h1 className="text-2xl font-semibold">Contenido de la web</h1>
           <p className="text-sm text-neutral-600 mt-1">
-            Edita los textos que aparecen en la home pública. Los cambios se
-            aplican inmediatamente.
+            Edita los textos e imágenes que aparecen en la home pública. Los
+            cambios se aplican inmediatamente.
           </p>
         </header>
-        <SiteContentForm values={values} hasOverride={hasOverride} />
+        <SiteContentForm
+          values={values}
+          hasOverride={hasOverride}
+          storageEnabled={isStorageConfigured()}
+        />
       </div>
     </main>
   );

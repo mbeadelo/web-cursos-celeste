@@ -14,6 +14,7 @@ export default async function Home() {
   const aboutEyebrow = pickContent(content, "about.eyebrow");
   const aboutTitle = pickContent(content, "about.title");
   const aboutBody = pickContent(content, "about.body");
+  const aboutImage = pickContent(content, "about.image");
   const stats = [
     {
       number: pickContent(content, "home.stats.s1.number"),
@@ -109,7 +110,12 @@ export default async function Home() {
         {/* ── Sobre mí ───────────────────────────────────── */}
         <section className="bg-gradient-to-b from-white to-brand-celeste/5 border-y border-neutral-200">
           <div className="max-w-5xl mx-auto px-6 py-20">
-            <AboutMe eyebrow={aboutEyebrow} title={aboutTitle} body={aboutBody} />
+            <AboutMe
+              eyebrow={aboutEyebrow}
+              title={aboutTitle}
+              body={aboutBody}
+              image={aboutImage}
+            />
           </div>
         </section>
 

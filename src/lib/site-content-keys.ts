@@ -2,8 +2,10 @@
  * Catalog of editable site copy. Defined here (without `server-only`) so client
  * components in /admin/contenido can read the metadata to render forms.
  *
- * - `text` : single-line or short paragraph (rendered as plain text).
- * - `rich` : HTML produced by the TipTap editor (rendered via dangerouslySetInnerHTML).
+ * - `text`  : single-line or short paragraph (rendered as plain text).
+ * - `rich`  : HTML produced by the TipTap editor (rendered via dangerouslySetInnerHTML).
+ * - `image` : a URL to an image (uploaded to R2 or pasted). Stored as a plain
+ *             string just like `text`; the form renders an upload/preview widget.
  *
  * `default` is what users see if no row exists in `SiteContent` for the key.
  */
@@ -79,6 +81,13 @@ export const SITE_CONTENT_KEYS = {
     hint: "",
     default: "A tu ritmo",
   },
+  "about.image": {
+    type: "image",
+    section: "Sobre mí",
+    label: "Foto / retrato",
+    hint: "Se muestra en redondo. Idealmente cuadrada (1:1) y de al menos 400×400 px.",
+    default: "/demo/portrait.jpg",
+  },
   "about.eyebrow": {
     type: "text",
     section: "Sobre mí",
@@ -143,7 +152,7 @@ export const SITE_CONTENT_KEYS = {
 } as const satisfies Record<
   string,
   {
-    type: "text" | "rich";
+    type: "text" | "rich" | "image";
     section: string;
     label: string;
     hint: string;
