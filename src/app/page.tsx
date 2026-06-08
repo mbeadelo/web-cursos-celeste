@@ -53,7 +53,13 @@ export default async function Home() {
             className="absolute top-40 -left-32 -z-10 size-[420px] rounded-full bg-brand-celeste/15 blur-3xl"
           />
 
-          <div className="max-w-5xl mx-auto px-6 pt-20 pb-24 text-center space-y-8">
+          <div className="max-w-5xl mx-auto px-6 pt-16 pb-24 text-center space-y-8">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/logo-icon.png"
+              alt="Bienvenido a tu plaza"
+              className="mx-auto h-28 md:h-36 w-auto"
+            />
             <p className="inline-flex items-center gap-2 rounded-full bg-white ring-1 ring-foreground/10 px-3 py-1 text-xs font-medium text-neutral-700">
               <span className="size-1.5 rounded-full bg-brand-celeste" />
               {heroBadge}

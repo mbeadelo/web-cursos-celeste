@@ -10,13 +10,19 @@ export function PublicFooter() {
         <div className="space-y-3">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-base font-semibold tracking-tight"
+            className="inline-flex items-center gap-2.5 text-base font-semibold tracking-tight"
           >
-            <span
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/logo-icon.png"
+              alt=""
               aria-hidden
-              className="inline-block size-2.5 rounded-full bg-brand-celeste"
+              className="h-8 w-auto"
             />
-            Bienvenido a tu plaza
+            <span>
+              <span className="text-brand-celeste-deep">Bienvenido a tu </span>
+              <span className="text-brand-amber-deep">plaza</span>
+            </span>
           </Link>
           <p className="text-sm text-neutral-600 leading-relaxed">
             Cursos online sobre lo tuyo. Aprende a tu ritmo, con material que

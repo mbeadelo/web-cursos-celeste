@@ -9,13 +9,19 @@ export async function PublicHeader() {
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link
           href="/"
-          className="text-base font-semibold tracking-tight flex items-center gap-2"
+          className="flex items-center gap-2.5 text-base font-semibold tracking-tight"
         >
-          <span
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/logo-icon.png"
+            alt=""
             aria-hidden
-            className="inline-block size-2.5 rounded-full bg-brand-celeste"
+            className="h-9 w-auto"
           />
-          Bienvenido a tu plaza
+          <span className="leading-none">
+            <span className="text-brand-celeste-deep">Bienvenido a tu </span>
+            <span className="text-brand-amber-deep">plaza</span>
+          </span>
         </Link>
         <nav className="flex items-center gap-6 text-sm">
           <Link

@@ -17,6 +17,9 @@
   --color-brand-magenta: var(--brand-magenta);
   --color-brand-magenta-deep: var(--brand-magenta-deep);
   --color-brand-magenta-foreground: var(--brand-magenta-foreground);
+  --color-brand-amber: var(--brand-amber);
+  --color-brand-amber-deep: var(--brand-amber-deep);
+  --color-brand-amber-foreground: var(--brand-amber-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -58,16 +61,20 @@
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
-  /* ── Brand palette (ajusta hex en estos 6 valores) ──
-     azul celeste: hue 225 (entre cyan y azul puro)
-     morado-rosa : hue 325 (entre violeta y magenta)
-     Si quieres un tono concreto, sustituye el oklch() por hex (#xxxxxx). */
-  --brand-celeste: oklch(0.74 0.13 225);
-  --brand-celeste-deep: oklch(0.62 0.16 230);
+  /* ── Brand palette — derivada del logo (cohete+libro "Bienvenido a tu plaza") ──
+     teal    #2FB8C8  (hue ~207)  → "celeste"
+     morado  #8A5FC0  (hue ~300)  → "magenta"
+     ámbar   #F0A828  (hue ~76)   → acento "amber"
+     Para cambiar un tono, sustituye el oklch() por hex (#xxxxxx). */
+  --brand-celeste: oklch(0.70 0.115 207);
+  --brand-celeste-deep: oklch(0.58 0.108 210);
   --brand-celeste-foreground: oklch(1 0 0);
-  --brand-magenta: oklch(0.66 0.24 325);
-  --brand-magenta-deep: oklch(0.55 0.27 325);
+  --brand-magenta: oklch(0.57 0.16 300);
+  --brand-magenta-deep: oklch(0.48 0.185 295);
   --brand-magenta-foreground: oklch(1 0 0);
+  --brand-amber: oklch(0.78 0.154 76);
+  --brand-amber-deep: oklch(0.70 0.149 68);
+  --brand-amber-foreground: oklch(0.24 0.03 70);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
