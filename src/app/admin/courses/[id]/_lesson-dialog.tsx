@@ -104,7 +104,13 @@ export function LessonDialog({
     },
   });
 
+  // Reset on every open (not just mount): the form state lives in this
+  // component, which stays mounted between openings. Without this, adding a
+  // second lesson keeps the previous one's values — including muxUploadId,
+  // which is @unique, so the create would collide and "not let you" add more
+  // than one video per fase.
   useEffect(() => {
+    if (!open) return;
     reset({
       type: lesson?.type ?? defaultType,
       title: lesson?.title ?? "",
@@ -115,7 +121,7 @@ export function LessonDialog({
       body: lesson?.body ?? "",
     });
     setServerError(null);
-  }, [lesson, reset, defaultType]);
+  }, [open, lesson, reset, defaultType]);
 
   const type = watch("type");
   const moduleId = watch("moduleId");
