@@ -177,20 +177,20 @@ export default async function Home() {
         </section>
 
         {/* ── CTA final ─────────────────────────────────── */}
-        <section className="max-w-3xl mx-auto px-6 pb-24">
-          <div className="rounded-2xl bg-gradient-to-br from-brand-celeste to-brand-magenta p-10 md:p-14 text-center text-white shadow-lg">
+        <section className="max-w-3xl mx-auto px-6 pb-24 text-center space-y-6">
+          <div className="space-y-3">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
               {ctaTitle}
             </h2>
-            <p className="mt-3 text-white/90 leading-relaxed">{ctaBody}</p>
-            <div className="mt-6 flex flex-wrap gap-3 justify-center">
-              <Link
-                href="/cursos"
-                className="rounded-full bg-white text-brand-celeste-deep px-6 py-3 font-semibold hover:bg-neutral-100 transition"
-              >
-                {ctaButton}
-              </Link>
-            </div>
+            <p className="text-neutral-600 leading-relaxed">{ctaBody}</p>
+          </div>
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link
+              href="/cursos"
+              className="rounded-full bg-brand-celeste text-brand-celeste-foreground px-6 py-3 font-semibold hover:bg-brand-celeste-deep transition shadow-sm"
+            >
+              {ctaButton}
+            </Link>
           </div>
         </section>
 
