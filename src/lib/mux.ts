@@ -59,7 +59,13 @@ export function requireMux(): Mux {
  * policy — the change only affects new uploads.
  */
 export async function createDirectUpload(opts: {
-  lessonId: string;
+  /**
+   * Lesson to tag as passthrough. Optional: when uploading while *creating* a
+   * lesson the row doesn't exist yet, so we omit it. The webhook still links
+   * the asset to the lesson via the muxUploadId chain (upload → asset →
+   * playback), so passthrough is just a convenience fallback.
+   */
+  lessonId?: string;
   corsOrigin: string;
 }): Promise<{ uploadId: string; uploadUrl: string }> {
   const mux = requireMux();
@@ -70,7 +76,7 @@ export async function createDirectUpload(opts: {
     cors_origin: opts.corsOrigin,
     new_asset_settings: {
       playback_policies: [policy],
-      passthrough: opts.lessonId,
+      ...(opts.lessonId ? { passthrough: opts.lessonId } : {}),
       // Mux Smart Encoding: MP4 + HLS, all resolutions up to 1080p by default.
       // For higher fidelity (4K, etc.) bump max_resolution_tier.
     },

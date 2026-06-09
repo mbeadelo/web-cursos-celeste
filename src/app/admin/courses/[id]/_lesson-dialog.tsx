@@ -37,6 +37,7 @@ type ExistingLesson = {
   type: LessonType;
   title: string;
   moduleId: string | null;
+  muxUploadId: string | null;
   muxPlaybackId: string | null;
   fileKey: string | null;
   body: string | null;
@@ -61,6 +62,7 @@ const FormSchema = z.object({
   type: z.enum(["VIDEO", "PDF", "TEXT"]),
   title: z.string().trim().min(2, "Mínimo 2 caracteres").max(200),
   moduleId: z.string().optional(),
+  muxUploadId: z.string().optional(),
   muxPlaybackId: z.string().trim().max(200).optional().or(z.literal("")),
   fileKey: z.string().trim().max(500).optional().or(z.literal("")),
   body: z.string().trim().max(20000).optional().or(z.literal("")),
@@ -95,6 +97,7 @@ export function LessonDialog({
       type: lesson?.type ?? defaultType,
       title: lesson?.title ?? "",
       moduleId: lesson?.moduleId ?? "",
+      muxUploadId: lesson?.muxUploadId ?? "",
       muxPlaybackId: lesson?.muxPlaybackId ?? "",
       fileKey: lesson?.fileKey ?? "",
       body: lesson?.body ?? "",
@@ -106,6 +109,7 @@ export function LessonDialog({
       type: lesson?.type ?? defaultType,
       title: lesson?.title ?? "",
       moduleId: lesson?.moduleId ?? "",
+      muxUploadId: lesson?.muxUploadId ?? "",
       muxPlaybackId: lesson?.muxPlaybackId ?? "",
       fileKey: lesson?.fileKey ?? "",
       body: lesson?.body ?? "",
@@ -116,6 +120,7 @@ export function LessonDialog({
   const type = watch("type");
   const moduleId = watch("moduleId");
   const fileKey = watch("fileKey");
+  const muxUploadId = watch("muxUploadId");
   const muxPlaybackId = watch("muxPlaybackId");
   const body = watch("body");
 
@@ -129,7 +134,8 @@ export function LessonDialog({
         type: "VIDEO",
         title: values.title,
         moduleId,
-        muxPlaybackId: values.muxPlaybackId ?? "",
+        muxUploadId: values.muxUploadId || undefined,
+        muxPlaybackId: values.muxPlaybackId || undefined,
       };
     } else if (values.type === "PDF") {
       payload = {
@@ -229,35 +235,35 @@ export function LessonDialog({
           {type === "VIDEO" && (
             <div className="space-y-1.5">
               <Label>Vídeo</Label>
-              {isEdit && muxConfigured ? (
+              {muxConfigured ? (
                 <VideoUpload
-                  lessonId={lesson.id}
+                  lessonId={isEdit ? lesson.id : undefined}
                   currentPlaybackId={muxPlaybackId ?? ""}
+                  currentUploadId={muxUploadId ?? ""}
+                  onUploaded={(uploadId) =>
+                    setValue("muxUploadId", uploadId, { shouldDirty: true })
+                  }
                 />
-              ) : isEdit && !muxConfigured ? (
-                <p className="text-xs text-neutral-500">
-                  Mux no está configurado. Configura las claves para habilitar
-                  la subida directa.
-                </p>
               ) : (
                 <p className="text-xs text-neutral-500">
-                  Crea la lección primero — después podrás subir el vídeo
-                  desde la pantalla de edición.
+                  Mux no está configurado. Configura las claves para habilitar
+                  la subida de vídeo.
                 </p>
               )}
-              <div className="pt-2">
-                <Label htmlFor="lesson-mux" className="text-xs text-neutral-500">
+              <details className="pt-2">
+                <summary className="text-xs text-neutral-500 cursor-pointer">
                   Playback ID (avanzado)
-                </Label>
+                </summary>
                 <Input
                   id="lesson-mux"
                   {...register("muxPlaybackId")}
                   placeholder="vS024...XYZ"
+                  className="mt-1"
                 />
                 <p className="text-xs text-neutral-500 mt-1">
-                  Se rellena automáticamente cuando Mux termina de procesar el vídeo.
+                  Se rellena solo cuando Mux termina de procesar el vídeo.
                 </p>
-              </div>
+              </details>
             </div>
           )}
 
@@ -407,9 +413,13 @@ function PdfUpload({
 function VideoUpload({
   lessonId,
   currentPlaybackId,
+  currentUploadId,
+  onUploaded,
 }: {
-  lessonId: string;
+  lessonId?: string;
   currentPlaybackId: string;
+  currentUploadId: string;
+  onUploaded: (uploadId: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<
@@ -429,7 +439,7 @@ function VideoUpload({
       const res = await fetch("/api/mux/upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lessonId }),
+        body: JSON.stringify(lessonId ? { lessonId } : {}),
       });
       if (!res.ok) throw new Error(`Mux upload-url falló (${res.status})`);
       signed = await res.json();
@@ -446,6 +456,7 @@ function VideoUpload({
         body: file,
       });
       if (!res.ok) throw new Error(`Upload falló (${res.status})`);
+      onUploaded(signed.uploadId);
       setProgress("processing");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error subiendo el vídeo");
@@ -474,13 +485,19 @@ function VideoUpload({
           {progress === "uploading" && "Subiendo a Mux…"}
           {progress === "processing" && "Procesando…"}
           {progress === "idle" &&
-            (currentPlaybackId ? "Reemplazar vídeo" : "Subir vídeo")}
+            (currentPlaybackId || currentUploadId
+              ? "Reemplazar vídeo"
+              : "Subir vídeo")}
         </Button>
-        {currentPlaybackId && (
+        {currentPlaybackId ? (
           <span className="text-xs text-emerald-700">
             ✓ Vídeo listo ({currentPlaybackId.slice(0, 8)}…)
           </span>
-        )}
+        ) : currentUploadId ? (
+          <span className="text-xs text-amber-700">
+            ✓ Vídeo subido, procesando en Mux…
+          </span>
+        ) : null}
       </div>
       {progress === "processing" && (
         <p className="text-xs text-amber-700">

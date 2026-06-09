@@ -39,6 +39,7 @@ type Lesson = {
   title: string;
   type: LessonType;
   moduleId: string | null;
+  muxUploadId: string | null;
   muxPlaybackId: string | null;
   fileKey: string | null;
   body: string | null;

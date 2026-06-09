@@ -9,11 +9,11 @@ const baseSchema = z.object({
 
 export const VideoLessonSchema = baseSchema.extend({
   type: z.literal("VIDEO"),
-  muxPlaybackId: z
-    .string()
-    .trim()
-    .min(1, "Pega el playback ID de Mux")
-    .max(200),
+  // Both optional: a video lesson can be created with the upload just started
+  // (muxUploadId) — or even empty — and the webhook fills muxPlaybackId later,
+  // matching the lesson by muxUploadId. No need to paste an id by hand.
+  muxUploadId: z.string().trim().max(200).optional(),
+  muxPlaybackId: z.string().trim().max(200).optional(),
 });
 
 export const PdfLessonSchema = baseSchema.extend({

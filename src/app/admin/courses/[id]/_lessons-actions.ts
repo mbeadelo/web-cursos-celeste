@@ -31,7 +31,8 @@ function mapInputToData(input: LessonInput) {
         type: "VIDEO" as const,
         title: input.title,
         moduleId,
-        muxPlaybackId: input.muxPlaybackId,
+        muxUploadId: input.muxUploadId || null,
+        muxPlaybackId: input.muxPlaybackId || null,
         fileKey: null,
         body: null,
       };

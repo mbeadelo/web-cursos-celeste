@@ -30,30 +30,33 @@ export async function POST(req: Request) {
     return new Response("Body JSON requerido", { status: 400 });
   }
   const lessonId = typeof body.lessonId === "string" ? body.lessonId : null;
-  if (!lessonId) return new Response("lessonId requerido", { status: 400 });
-
-  const lesson = await db.lesson.findUnique({
-    where: { id: lessonId },
-    select: { id: true, type: true },
-  });
-  if (!lesson) return new Response("Lección no encontrada", { status: 404 });
-  if (lesson.type !== "VIDEO") {
-    return new Response("La lección no es de tipo VIDEO", { status: 400 });
-  }
-
   const origin = new URL(req.url).origin;
 
-  const { uploadId, uploadUrl } = await createDirectUpload({
-    lessonId: lesson.id,
-    corsOrigin: origin,
-  });
+  // Editing an existing lesson: verify it's a video and persist the upload id
+  // on the row so the webhook can fill muxAssetId/muxPlaybackId.
+  if (lessonId) {
+    const lesson = await db.lesson.findUnique({
+      where: { id: lessonId },
+      select: { id: true, type: true },
+    });
+    if (!lesson) return new Response("Lección no encontrada", { status: 404 });
+    if (lesson.type !== "VIDEO") {
+      return new Response("La lección no es de tipo VIDEO", { status: 400 });
+    }
+    const { uploadId, uploadUrl } = await createDirectUpload({
+      lessonId: lesson.id,
+      corsOrigin: origin,
+    });
+    await db.lesson.update({
+      where: { id: lesson.id },
+      data: { muxUploadId: uploadId },
+    });
+    return NextResponse.json({ uploadUrl, uploadId });
+  }
 
-  // Save the upload id so the webhook can find this lesson via passthrough
-  // OR via direct lookup. We track both for resilience.
-  await db.lesson.update({
-    where: { id: lesson.id },
-    data: { muxUploadId: uploadId },
-  });
-
+  // Creating a lesson: the row doesn't exist yet. Return the upload id and let
+  // the client store it on the lesson at creation time; the webhook links the
+  // asset to the lesson via that muxUploadId.
+  const { uploadId, uploadUrl } = await createDirectUpload({ corsOrigin: origin });
   return NextResponse.json({ uploadUrl, uploadId });
 }

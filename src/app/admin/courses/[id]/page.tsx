@@ -33,6 +33,7 @@ export default async function EditCoursePage({
           title: true,
           type: true,
           moduleId: true,
+          muxUploadId: true,
           muxPlaybackId: true,
           fileKey: true,
           body: true,
