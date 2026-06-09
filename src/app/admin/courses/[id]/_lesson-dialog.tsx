@@ -208,26 +208,21 @@ export function LessonDialog({
           {modules.length > 0 && (
             <div className="space-y-1.5">
               <Label htmlFor="lesson-module">Fase</Label>
-              <Select
-                value={moduleId || "none"}
-                onValueChange={(v) =>
-                  setValue("moduleId", v && v !== "none" ? v : "", {
-                    shouldDirty: true,
-                  })
+              <select
+                id="lesson-module"
+                value={moduleId || ""}
+                onChange={(e) =>
+                  setValue("moduleId", e.target.value, { shouldDirty: true })
                 }
+                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-celeste"
               >
-                <SelectTrigger id="lesson-module">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin fase</SelectItem>
-                  {modules.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="">Sin fase</option>
+                {modules.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.title}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 
