@@ -104,6 +104,25 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 - `submitReview` exige `Enrollment`. Reenviar **edita** la reseña existente y la vuelve a `PENDING`.
 - Solo `APPROVED` aparece en la landing pública. Moderación en `/admin/reviews`.
 
+## Contenido editable de la web (SiteContent)
+
+Casi todo el texto público de la home es editable desde `/admin/contenido` sin tocar código, vía el modelo `SiteContent` (clave → valor).
+
+- **Catálogo de claves**: `src/lib/site-content-keys.ts` (`SITE_CONTENT_KEYS`). Cada clave declara `type`, `section`, `label`, `hint` y `default`. Para añadir un campo editable, basta con declarar la clave aquí y leerla donde toque.
+- **Tipos de campo**: `text` (input/textarea), `rich` (editor TipTap → HTML sanitizado con `src/lib/html.ts`), `image` (sube a R2 con URL firmada o pega URL; widget `src/app/admin/contenido/_image-field.tsx`).
+- **Lectura** (server-only, cacheado por petición): `getAllContent()` / `pickContent(map, key)` / `getContent(key)` en `src/lib/site-content.ts`. Si no hay fila en DB se usa el `default` de la clave.
+- **Guardado / reset**: server actions en `src/app/admin/contenido/_actions.ts` (`saveSiteContent`, `resetSiteContentKey`, `requestSiteImageUploadUrl`); `revalidatePath("/")` tras guardar. ⚠️ Vaciar un campo NO lo resetea (se ignora en el guardado); para volver al `default` hay que pulsar "Resetear" (borra la fila).
+- **Cobertura actual de la home**: Hero (badge, subtítulo, 3 botones), Cursos destacados (título, subtítulo), Sobre mí (etiqueta, título, cuerpo `rich`, imagen), Por qué esta plaza (etiqueta, título, 3 bloques), CTA final (título, texto, botón), Cifras. El `<h1>` "Bienvenido a tu plaza" del hero queda fijo (es la marca).
+
+## Marca y diseño
+
+- **Paleta** en `src/app/globals.css` (tokens oklch bajo `:root`), derivada del logo. Cambiar un token cascadea por toda la web vía Tailwind (`bg-brand-*`, `text-brand-*`, degradados…). El mapeo de tokens está en el bloque `@theme inline` del mismo fichero:
+  - `--brand-celeste` = teal `#2FB8C8` (+ `-deep`, `-foreground`)
+  - `--brand-magenta` = morado `#8A5FC0` (+ `-deep`, `-foreground`)
+  - `--brand-amber` = naranja `#F0A828` (+ `-deep`, `-foreground`) — acento; se cablea a mano (wordmark "plaza" en header/footer, tarjetas de "Por qué esta plaza").
+- **Logo**: `public/brand/logo-icon.png` (icono cohete+libro, fondo transparente). Lo usan `src/components/public-header.tsx`, `src/components/public-footer.tsx` y el hero (`src/app/page.tsx`). Único asset de marca commiteado.
+- **Subidas a R2 desde el navegador** (covers, imágenes de sitio, PDFs de lección) necesitan el host de R2 en `connect-src` de la CSP (`src/proxy.ts`): `https://*.r2.cloudflarestorage.com`. Sin él, el PUT firmado falla con "Failed to fetch". Recordatorio operativo: las `R2_*` deben estar en el scope **Production** de Vercel y el nombre exacto que valida `env.ts` es `R2_ACCESS_KEY_ID` (no `R2_ACCESS_KEY`).
+
 ## Archivos críticos
 
 | Path | Rol |
