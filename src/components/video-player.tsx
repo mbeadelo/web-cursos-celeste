@@ -121,6 +121,7 @@ export function VideoPlayer({
       >
         <div>{watermarkEmail}</div>
         <div>{watermarkIp}</div>
+        <div>bienvenidoatuplaza.com</div>
       </div>
 
       {/* Second watermark, bottom-left, with different rotation. Two anchors
@@ -137,7 +138,8 @@ export function VideoPlayer({
           textShadow: "0 0 6px rgba(0,0,0,0.7), 0 0 2px rgba(0,0,0,0.9)",
         }}
       >
-        {watermarkEmail}
+        <div>{watermarkEmail}</div>
+        <div>bienvenidoatuplaza.com</div>
       </div>
     </div>
   );
