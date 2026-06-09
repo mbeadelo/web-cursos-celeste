@@ -110,6 +110,67 @@ export const SITE_CONTENT_KEYS = {
     default: `<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Llevo años enseñando lo que sé y guiando a alumnas y alumnos a su propio ritmo. Empecé compartiendo apuntes sueltos y, sin darme cuenta, terminé montando una pequeña comunidad que crecía con cada nueva pregunta.</p><p>Mauris aliquet, lectus eu pulvinar tincidunt, mi sapien efficitur ipsum. Hoy, esta plaza es el sitio donde reúno todo lo que he ido aprendiendo y donde puedes acceder a los cursos cuando y como quieras. Material práctico, lecciones grabadas y respuestas reales cuando te atascas.</p><p>Pellentesque habitant morbi tristique senectus et netus. Si quieres empezar por algún sitio, te recomiendo darte una vuelta por el catálogo y ver qué encaja contigo.</p>`,
   },
 
+  // ─── Home — Por qué esta plaza ───
+  "home.why.eyebrow": {
+    type: "text",
+    section: "Home — Por qué esta plaza",
+    label: "Etiqueta superior",
+    hint: "Texto pequeño en mayúsculas.",
+    default: "Por qué esta plaza",
+  },
+  "home.why.title": {
+    type: "text",
+    section: "Home — Por qué esta plaza",
+    label: "Título de la sección",
+    hint: "",
+    default: "Aprender no tiene por qué ser un agobio",
+  },
+  "home.why.f1.title": {
+    type: "text",
+    section: "Home — Por qué esta plaza",
+    label: "Bloque 1 — título",
+    hint: "",
+    default: "A tu ritmo",
+  },
+  "home.why.f1.body": {
+    type: "text",
+    section: "Home — Por qué esta plaza",
+    label: "Bloque 1 — texto",
+    hint: "",
+    default:
+      "Las lecciones quedan grabadas. Las repites cuando quieras, las pausas cuando lo necesites.",
+  },
+  "home.why.f2.title": {
+    type: "text",
+    section: "Home — Por qué esta plaza",
+    label: "Bloque 2 — título",
+    hint: "",
+    default: "Material práctico",
+  },
+  "home.why.f2.body": {
+    type: "text",
+    section: "Home — Por qué esta plaza",
+    label: "Bloque 2 — texto",
+    hint: "",
+    default:
+      "PDFs, ejercicios y referencias para descargar y revisitar. Lo importante se queda contigo.",
+  },
+  "home.why.f3.title": {
+    type: "text",
+    section: "Home — Por qué esta plaza",
+    label: "Bloque 3 — título",
+    hint: "",
+    default: "Acompañamiento real",
+  },
+  "home.why.f3.body": {
+    type: "text",
+    section: "Home — Por qué esta plaza",
+    label: "Bloque 3 — texto",
+    hint: "",
+    default:
+      "No estás sola en esto. Pregunta cuando te atasques y resuelves dudas con la comunidad.",
+  },
+
   // ─── Email — Bienvenida tras compra ───
   // Estas claves se inyectan en src/lib/email.ts → sendPurchaseWelcomeEmail.
   // Soportan placeholders entre llaves dobles: {{courseTitle}}, {{loginUrl}}.

@@ -15,6 +15,25 @@ export default async function Home() {
   const aboutTitle = pickContent(content, "about.title");
   const aboutBody = pickContent(content, "about.body");
   const aboutImage = pickContent(content, "about.image");
+  const whyEyebrow = pickContent(content, "home.why.eyebrow");
+  const whyTitle = pickContent(content, "home.why.title");
+  const whyFeatures = [
+    {
+      title: pickContent(content, "home.why.f1.title"),
+      body: pickContent(content, "home.why.f1.body"),
+      tone: "celeste" as const,
+    },
+    {
+      title: pickContent(content, "home.why.f2.title"),
+      body: pickContent(content, "home.why.f2.body"),
+      tone: "amber" as const,
+    },
+    {
+      title: pickContent(content, "home.why.f3.title"),
+      body: pickContent(content, "home.why.f3.body"),
+      tone: "magenta" as const,
+    },
+  ];
   const stats = [
     {
       number: pickContent(content, "home.stats.s1.number"),
@@ -126,28 +145,26 @@ export default async function Home() {
         </section>
 
         {/* ── Por qué esta plaza ────────────────────────── */}
-        <section className="max-w-5xl mx-auto px-6 py-20 space-y-10">
-          <div className="text-center space-y-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-brand-magenta-deep font-semibold">
-              Por qué esta plaza
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-              Aprender no tiene por qué ser un agobio
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Feature
-              title="A tu ritmo"
-              body="Las lecciones quedan grabadas. Las repites cuando quieras, las pausas cuando lo necesites."
-            />
-            <Feature
-              title="Material práctico"
-              body="PDFs, ejercicios y referencias para descargar y revisitar. Lo importante se queda contigo."
-            />
-            <Feature
-              title="Acompañamiento real"
-              body="No estás sola en esto. Pregunta cuando te atasques y resuelves dudas con la comunidad."
-            />
+        <section className="bg-gradient-to-b from-brand-celeste/5 via-white to-brand-magenta/5 border-y border-neutral-200">
+          <div className="max-w-5xl mx-auto px-6 py-20 space-y-10">
+            <div className="text-center space-y-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-brand-celeste-deep font-semibold">
+                {whyEyebrow}
+              </p>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+                {whyTitle}
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {whyFeatures.map((f) => (
+                <Feature
+                  key={f.title}
+                  title={f.title}
+                  body={f.body}
+                  tone={f.tone}
+                />
+              ))}
+            </div>
           </div>
         </section>
 
@@ -189,10 +206,27 @@ function Stat({ number, label }: { number: string; label: string }) {
   );
 }
 
-function Feature({ title, body }: { title: string; body: string }) {
+const FEATURE_TONES = {
+  celeste: { dot: "bg-brand-celeste", ring: "hover:ring-brand-celeste/50" },
+  amber: { dot: "bg-brand-amber", ring: "hover:ring-brand-amber/50" },
+  magenta: { dot: "bg-brand-magenta", ring: "hover:ring-brand-magenta/50" },
+} as const;
+
+function Feature({
+  title,
+  body,
+  tone,
+}: {
+  title: string;
+  body: string;
+  tone: keyof typeof FEATURE_TONES;
+}) {
+  const t = FEATURE_TONES[tone];
   return (
-    <div className="rounded-2xl bg-white ring-1 ring-foreground/10 p-6 space-y-2 transition hover:ring-brand-celeste/40 hover:-translate-y-0.5">
-      <div className="size-9 rounded-full bg-gradient-to-br from-brand-celeste to-brand-magenta" />
+    <div
+      className={`rounded-2xl bg-white ring-1 ring-foreground/10 p-6 space-y-2 transition hover:-translate-y-0.5 ${t.ring}`}
+    >
+      <div className={`size-10 rounded-xl ${t.dot}`} />
       <h3 className="font-semibold text-lg pt-2">{title}</h3>
       <p className="text-sm text-neutral-600 leading-relaxed">{body}</p>
     </div>
