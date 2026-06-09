@@ -58,12 +58,21 @@ export default async function EditCoursePage({
             <h1 className="text-2xl font-semibold">Editar curso</h1>
             <p className="text-sm text-neutral-600 font-mono">{course.slug}</p>
           </div>
-          <Link
-            href="/admin/courses"
-            className="text-sm text-neutral-600 hover:text-neutral-900 underline"
-          >
-            Volver a la lista
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href={`/dashboard/cursos/${course.slug}`}
+              target="_blank"
+              className="text-sm font-medium text-brand-celeste-deep hover:text-brand-magenta underline"
+            >
+              Vista previa ↗
+            </Link>
+            <Link
+              href="/admin/courses"
+              className="text-sm text-neutral-600 hover:text-neutral-900 underline"
+            >
+              Volver a la lista
+            </Link>
+          </div>
         </header>
 
         <section className="space-y-4">

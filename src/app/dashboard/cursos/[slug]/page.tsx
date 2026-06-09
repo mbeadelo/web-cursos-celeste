@@ -81,8 +81,13 @@ export default async function StudentCoursePage({
   });
   if (!course) notFound();
 
-  const allowed = await canAccessCourse(session.user.id, course.id);
-  if (!allowed) redirect("/dashboard");
+  // Admins can preview any course without an Enrollment. `isPreview` is true
+  // when an admin views a course they're not enrolled in — used to hide the
+  // reviews block (it requires enrollment to post anyway).
+  const enrolled = await canAccessCourse(session.user.id, course.id);
+  const isAdmin = session.user.role === "ADMIN";
+  if (!enrolled && !isAdmin) redirect("/dashboard");
+  const isPreview = isAdmin && !enrolled;
 
   // Pick active lesson: query param if valid, else first lesson.
   const active =
@@ -329,21 +334,25 @@ export default async function StudentCoursePage({
                 )}
               </footer>
 
-              <section className="mt-10 rounded-2xl border border-neutral-200 bg-white p-6 md:p-8 space-y-3">
-                <header className="space-y-1">
-                  <h3 className="text-lg font-semibold">
-                    {existingReview ? "Tu reseña" : "Cuenta tu experiencia"}
-                  </h3>
-                  <p className="text-sm text-neutral-600">
-                    Tu valoración ayuda a otros alumnos a decidir. La
-                    publicaremos cuando la moderemos.
-                  </p>
-                </header>
-                <ReviewForm
-                  courseId={course.id}
-                  initial={existingReview ?? undefined}
-                />
-              </section>
+              {/* Reviews hidden in admin preview — it's the last section, so
+                  not rendering it doesn't shift anything above. */}
+              {!isPreview && (
+                <section className="mt-10 rounded-2xl border border-neutral-200 bg-white p-6 md:p-8 space-y-3">
+                  <header className="space-y-1">
+                    <h3 className="text-lg font-semibold">
+                      {existingReview ? "Tu reseña" : "Cuenta tu experiencia"}
+                    </h3>
+                    <p className="text-sm text-neutral-600">
+                      Tu valoración ayuda a otros alumnos a decidir. La
+                      publicaremos cuando la moderemos.
+                    </p>
+                  </header>
+                  <ReviewForm
+                    courseId={course.id}
+                    initial={existingReview ?? undefined}
+                  />
+                </section>
+              )}
             </>
           )}
         </section>
