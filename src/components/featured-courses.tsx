@@ -26,7 +26,7 @@ export async function FeaturedCourses({
   subtitle: string;
 }) {
   const real = await db.course.findMany({
-    where: { published: true },
+    where: { published: true, type: "COURSE" },
     orderBy: [
       { featuredOrder: { sort: "asc", nulls: "last" } },
       { createdAt: "desc" },

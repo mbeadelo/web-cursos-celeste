@@ -27,7 +27,7 @@ import { LessonInputSchema, type LessonInput } from "@/lib/validations/lesson";
 import {
   createLesson,
   updateLesson,
-  requestLessonFileUploadUrl,
+  requestPdfUploadUrl,
 } from "./_lessons-actions";
 
 type LessonType = "VIDEO" | "PDF" | "TEXT";
@@ -36,6 +36,7 @@ type ExistingLesson = {
   id: string;
   type: LessonType;
   title: string;
+  moduleId: string | null;
   muxPlaybackId: string | null;
   fileKey: string | null;
   body: string | null;
@@ -46,15 +47,20 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lesson?: ExistingLesson;
+  /** Modules/fases of the course, for the "Fase" selector. Empty = packs/flat. */
+  modules: { id: string; title: string }[];
   /** When true the admin can upload PDFs directly to R2 from the dialog. */
   storageEnabled: boolean;
   /** When true the admin can upload videos directly to Mux from the dialog. */
   muxConfigured: boolean;
+  /** When true (packs) only PDF lessons are allowed. */
+  pdfOnly?: boolean;
 };
 
 const FormSchema = z.object({
   type: z.enum(["VIDEO", "PDF", "TEXT"]),
   title: z.string().trim().min(2, "Mínimo 2 caracteres").max(200),
+  moduleId: z.string().optional(),
   muxPlaybackId: z.string().trim().max(200).optional().or(z.literal("")),
   fileKey: z.string().trim().max(500).optional().or(z.literal("")),
   body: z.string().trim().max(20000).optional().or(z.literal("")),
@@ -67,11 +73,14 @@ export function LessonDialog({
   open,
   onOpenChange,
   lesson,
+  modules,
   storageEnabled,
   muxConfigured,
+  pdfOnly,
 }: Props) {
   const isEdit = !!lesson;
   const [serverError, setServerError] = useState<string | null>(null);
+  const defaultType: LessonType = pdfOnly ? "PDF" : "VIDEO";
 
   const {
     register,
@@ -83,8 +92,9 @@ export function LessonDialog({
   } = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      type: lesson?.type ?? "VIDEO",
+      type: lesson?.type ?? defaultType,
       title: lesson?.title ?? "",
+      moduleId: lesson?.moduleId ?? "",
       muxPlaybackId: lesson?.muxPlaybackId ?? "",
       fileKey: lesson?.fileKey ?? "",
       body: lesson?.body ?? "",
@@ -93,16 +103,18 @@ export function LessonDialog({
 
   useEffect(() => {
     reset({
-      type: lesson?.type ?? "VIDEO",
+      type: lesson?.type ?? defaultType,
       title: lesson?.title ?? "",
+      moduleId: lesson?.moduleId ?? "",
       muxPlaybackId: lesson?.muxPlaybackId ?? "",
       fileKey: lesson?.fileKey ?? "",
       body: lesson?.body ?? "",
     });
     setServerError(null);
-  }, [lesson, reset]);
+  }, [lesson, reset, defaultType]);
 
   const type = watch("type");
+  const moduleId = watch("moduleId");
   const fileKey = watch("fileKey");
   const muxPlaybackId = watch("muxPlaybackId");
   const body = watch("body");
@@ -110,23 +122,27 @@ export function LessonDialog({
   async function onSubmit(values: FormValues) {
     setServerError(null);
 
+    const moduleId = values.moduleId || undefined;
     let payload: LessonInput;
     if (values.type === "VIDEO") {
       payload = {
         type: "VIDEO",
         title: values.title,
+        moduleId,
         muxPlaybackId: values.muxPlaybackId ?? "",
       };
     } else if (values.type === "PDF") {
       payload = {
         type: "PDF",
         title: values.title,
+        moduleId,
         fileKey: values.fileKey ?? "",
       };
     } else {
       payload = {
         type: "TEXT",
         title: values.title,
+        moduleId,
         body: values.body ?? "",
       };
     }
@@ -160,24 +176,26 @@ export function LessonDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="lesson-type">Tipo</Label>
-            <Select
-              value={type}
-              onValueChange={(v) =>
-                setValue("type", v as LessonType, { shouldDirty: true })
-              }
-            >
-              <SelectTrigger id="lesson-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="VIDEO">Vídeo</SelectItem>
-                <SelectItem value="PDF">PDF</SelectItem>
-                <SelectItem value="TEXT">Texto</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {!pdfOnly && (
+            <div className="space-y-1.5">
+              <Label htmlFor="lesson-type">Tipo</Label>
+              <Select
+                value={type}
+                onValueChange={(v) =>
+                  setValue("type", v as LessonType, { shouldDirty: true })
+                }
+              >
+                <SelectTrigger id="lesson-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="VIDEO">Vídeo</SelectItem>
+                  <SelectItem value="PDF">PDF</SelectItem>
+                  <SelectItem value="TEXT">Texto</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="lesson-title">Título</Label>
@@ -186,6 +204,27 @@ export function LessonDialog({
               <p className="text-xs text-red-600">{errors.title.message}</p>
             )}
           </div>
+
+          {modules.length > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor="lesson-module">Fase</Label>
+              <select
+                id="lesson-module"
+                value={moduleId || ""}
+                onChange={(e) =>
+                  setValue("moduleId", e.target.value, { shouldDirty: true })
+                }
+                className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-celeste"
+              >
+                <option value="">Sin fase</option>
+                {modules.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {type === "VIDEO" && (
             <div className="space-y-1.5">
@@ -225,31 +264,24 @@ export function LessonDialog({
           {type === "PDF" && (
             <div className="space-y-1.5">
               <Label>PDF</Label>
-              {isEdit ? (
-                <PdfUpload
-                  lessonId={lesson.id}
-                  currentKey={fileKey ?? ""}
-                  storageEnabled={storageEnabled}
-                  onUploaded={(key) =>
-                    setValue("fileKey", key, { shouldDirty: true })
-                  }
-                />
-              ) : (
-                <p className="text-xs text-neutral-500">
-                  Crea la lección primero — después podrás subir el PDF desde
-                  la pantalla de edición.
-                </p>
-              )}
-              <div className="pt-2">
-                <Label htmlFor="lesson-key" className="text-xs text-neutral-500">
+              <PdfUpload
+                currentKey={fileKey ?? ""}
+                storageEnabled={storageEnabled}
+                onUploaded={(key) =>
+                  setValue("fileKey", key, { shouldDirty: true })
+                }
+              />
+              <details className="pt-2">
+                <summary className="text-xs text-neutral-500 cursor-pointer">
                   File key (avanzado)
-                </Label>
+                </summary>
                 <Input
                   id="lesson-key"
                   {...register("fileKey")}
                   placeholder="lesson-files/abc/intro.pdf"
+                  className="mt-1"
                 />
-              </div>
+              </details>
             </div>
           )}
 
@@ -285,12 +317,10 @@ export function LessonDialog({
 }
 
 function PdfUpload({
-  lessonId,
   currentKey,
   storageEnabled,
   onUploaded,
 }: {
-  lessonId: string;
   currentKey: string;
   storageEnabled: boolean;
   onUploaded: (key: string) => void;
@@ -316,8 +346,7 @@ function PdfUpload({
     setError(null);
     setProgress("signing");
 
-    const signed = await requestLessonFileUploadUrl({
-      lessonId,
+    const signed = await requestPdfUploadUrl({
       filename: file.name,
       contentType: file.type || "application/pdf",
     });

@@ -60,8 +60,13 @@ export async function updateCourse(
     return { ok: false, error: "Datos no válidos", fieldErrors: flattenErrors(parsed.error) };
   }
 
+  // `type` is immutable after creation (COURSE vs PACK). The edit form shows it
+  // locked; we also strip it here so a save never flips the type, regardless of
+  // how the disabled field serialises.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { type: _ignoredType, ...updateData } = parsed.data;
   try {
-    await db.course.update({ where: { id }, data: parsed.data });
+    await db.course.update({ where: { id }, data: updateData });
   } catch (err: unknown) {
     if (isUniqueConstraint(err, "slug")) {
       return { ok: false, error: "Ese slug ya existe. Usa otro." };

@@ -60,6 +60,10 @@ export default async function StudentCoursePage({
   const course = await db.course.findUnique({
     where: { slug },
     include: {
+      modules: {
+        orderBy: { order: "asc" },
+        select: { id: true, title: true },
+      },
       lessons: {
         orderBy: { order: "asc" },
         select: {
@@ -67,6 +71,7 @@ export default async function StudentCoursePage({
           order: true,
           title: true,
           type: true,
+          moduleId: true,
           muxPlaybackId: true,
           fileKey: true,
           body: true,
@@ -130,6 +135,66 @@ export default async function StudentCoursePage({
     select: { rating: true, body: true, status: true },
   });
 
+  // Group lessons by module/fase for the sidebar. Loose lessons (moduleId null)
+  // render flat — either as the whole list (courses/packs without fases) or
+  // under "Otras lecciones" when fases exist.
+  const hasModules = course.modules.length > 0;
+  const moduleIds = new Set(course.modules.map((m) => m.id));
+  const lessonsInModule = (moduleId: string) =>
+    course.lessons.filter((l) => l.moduleId === moduleId);
+  // Loose = no module OR a module that no longer exists (orphaned). Including the
+  // orphan case is essential: otherwise such lessons vanish from the sidebar
+  // while still counting toward the progress total, so it never reaches 100%.
+  const looseLessons = course.lessons.filter(
+    (l) => !l.moduleId || !moduleIds.has(l.moduleId)
+  );
+
+  const renderLesson = (l: (typeof course.lessons)[number]) => {
+    const isActive = active?.id === l.id;
+    const lessonCompleted = Boolean(progressByLesson.get(l.id)?.completedAt);
+    return (
+      <li key={l.id}>
+        <Link
+          href={`/dashboard/cursos/${course.slug}?l=${l.id}`}
+          className={
+            "block rounded-lg px-3 py-2.5 transition border " +
+            (isActive
+              ? "bg-brand-celeste/10 border-brand-celeste/40 text-brand-celeste-deep"
+              : "bg-white border-transparent hover:border-neutral-200 hover:bg-neutral-50")
+          }
+        >
+          <div className="flex items-start gap-3">
+            <span
+              className={
+                "mt-0.5 w-5 shrink-0 inline-flex items-center justify-center text-xs tabular-nums " +
+                (lessonCompleted
+                  ? "size-5 rounded-full bg-brand-celeste/20 text-brand-celeste-deep font-bold"
+                  : "text-neutral-400")
+              }
+              aria-label={lessonCompleted ? "Lección completada" : undefined}
+            >
+              {lessonCompleted ? "✓" : l.order}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p
+                className={
+                  "text-sm leading-snug " +
+                  (isActive ? "font-semibold" : "font-medium")
+                }
+              >
+                {l.title}
+              </p>
+              <p className="text-[11px] uppercase tracking-wide text-neutral-500 mt-0.5">
+                <span className="mr-1">{lessonTypeIcon(l.type)}</span>
+                {lessonTypeLabel[l.type]}
+              </p>
+            </div>
+          </div>
+        </Link>
+      </li>
+    );
+  };
+
   return (
     <main className="flex-1">
       <div className="border-b border-neutral-200 bg-white">
@@ -175,58 +240,31 @@ export default async function StudentCoursePage({
             <p className="text-sm text-neutral-500 px-2">
               Aún no hay lecciones publicadas.
             </p>
-          ) : (
-            <ol className="space-y-1">
-              {course.lessons.map((l) => {
-                const isActive = active?.id === l.id;
-                const lessonCompleted = Boolean(
-                  progressByLesson.get(l.id)?.completedAt
-                );
+          ) : hasModules ? (
+            <div className="space-y-4">
+              {course.modules.map((m) => {
+                const ls = lessonsInModule(m.id);
+                if (ls.length === 0) return null;
                 return (
-                  <li key={l.id}>
-                    <Link
-                      href={`/dashboard/cursos/${course.slug}?l=${l.id}`}
-                      className={
-                        "block rounded-lg px-3 py-2.5 transition border " +
-                        (isActive
-                          ? "bg-brand-celeste/10 border-brand-celeste/40 text-brand-celeste-deep"
-                          : "bg-white border-transparent hover:border-neutral-200 hover:bg-neutral-50")
-                      }
-                    >
-                      <div className="flex items-start gap-3">
-                        <span
-                          className={
-                            "mt-0.5 w-5 shrink-0 inline-flex items-center justify-center text-xs tabular-nums " +
-                            (lessonCompleted
-                              ? "size-5 rounded-full bg-brand-celeste/20 text-brand-celeste-deep font-bold"
-                              : "text-neutral-400")
-                          }
-                          aria-label={
-                            lessonCompleted ? "Lección completada" : undefined
-                          }
-                        >
-                          {lessonCompleted ? "✓" : l.order}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className={
-                              "text-sm leading-snug " +
-                              (isActive ? "font-semibold" : "font-medium")
-                            }
-                          >
-                            {l.title}
-                          </p>
-                          <p className="text-[11px] uppercase tracking-wide text-neutral-500 mt-0.5">
-                            <span className="mr-1">{lessonTypeIcon(l.type)}</span>
-                            {lessonTypeLabel[l.type]}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                  </li>
+                  <div key={m.id} className="space-y-1">
+                    <p className="text-xs font-semibold text-neutral-700 px-2 pt-1">
+                      {m.title}
+                    </p>
+                    <ol className="space-y-1">{ls.map(renderLesson)}</ol>
+                  </div>
                 );
               })}
-            </ol>
+              {looseLessons.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-neutral-500 px-2 pt-1">
+                    Otras lecciones
+                  </p>
+                  <ol className="space-y-1">{looseLessons.map(renderLesson)}</ol>
+                </div>
+              )}
+            </div>
+          ) : (
+            <ol className="space-y-1">{course.lessons.map(renderLesson)}</ol>
           )}
         </aside>
 

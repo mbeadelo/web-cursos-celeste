@@ -22,12 +22,15 @@ async function ensureAdmin(): Promise<void> {
 }
 
 function mapInputToData(input: LessonInput) {
+  // Empty string / undefined → null (loose lesson, no fase).
+  const moduleId = input.moduleId && input.moduleId.length > 0 ? input.moduleId : null;
   // Each variant carries different fields; persist only the relevant ones.
   switch (input.type) {
     case "VIDEO":
       return {
         type: "VIDEO" as const,
         title: input.title,
+        moduleId,
         muxPlaybackId: input.muxPlaybackId,
         fileKey: null,
         body: null,
@@ -36,6 +39,7 @@ function mapInputToData(input: LessonInput) {
       return {
         type: "PDF" as const,
         title: input.title,
+        moduleId,
         fileKey: input.fileKey,
         muxPlaybackId: null,
         body: null,
@@ -44,11 +48,30 @@ function mapInputToData(input: LessonInput) {
       return {
         type: "TEXT" as const,
         title: input.title,
+        moduleId,
         body: input.body,
         muxPlaybackId: null,
         fileKey: null,
       };
   }
+}
+
+/**
+ * Returns the moduleId only if that module exists AND belongs to this course;
+ * otherwise null. Prevents attaching a lesson to another course's (or a
+ * deleted) module, which would orphan it from the student view or throw a FK
+ * error.
+ */
+async function resolveModuleId(
+  courseId: string,
+  moduleId: string | null
+): Promise<string | null> {
+  if (!moduleId) return null;
+  const found = await db.module.findFirst({
+    where: { id: moduleId, courseId },
+    select: { id: true },
+  });
+  return found ? moduleId : null;
 }
 
 export async function createLesson(
@@ -72,9 +95,11 @@ export async function createLesson(
   });
   const nextOrder = (last?.order ?? 0) + 1;
 
+  const data = mapInputToData(parsed.data);
   await db.lesson.create({
     data: {
-      ...mapInputToData(parsed.data),
+      ...data,
+      moduleId: await resolveModuleId(courseId, data.moduleId),
       courseId,
       order: nextOrder,
     },
@@ -98,13 +123,22 @@ export async function updateLesson(
     };
   }
 
-  const updated = await db.lesson.update({
+  const existing = await db.lesson.findUnique({
     where: { id: lessonId },
-    data: mapInputToData(parsed.data),
     select: { courseId: true },
   });
+  if (!existing) return { ok: false, error: "Lección no encontrada." };
 
-  revalidatePath(`/admin/courses/${updated.courseId}`);
+  const data = mapInputToData(parsed.data);
+  await db.lesson.update({
+    where: { id: lessonId },
+    data: {
+      ...data,
+      moduleId: await resolveModuleId(existing.courseId, data.moduleId),
+    },
+  });
+
+  revalidatePath(`/admin/courses/${existing.courseId}`);
   return { ok: true };
 }
 
@@ -208,6 +242,37 @@ export async function requestLessonFileUploadUrl(input: {
 
   const key = buildLessonFileKey({
     lessonId: lesson.id,
+    filename: input.filename,
+  });
+  const { uploadUrl } = await createUploadUrl({
+    key,
+    contentType: input.contentType,
+  });
+  return { ok: true, uploadUrl, key };
+}
+
+/**
+ * Like requestLessonFileUploadUrl but WITHOUT an existing lesson — lets the
+ * admin upload a PDF while *creating* a lesson (or a pack material), before the
+ * row exists. The key uses a random id as folder prefix; the resulting key is
+ * saved into lesson.fileKey when the lesson is created/updated.
+ */
+export async function requestPdfUploadUrl(input: {
+  filename: string;
+  contentType: string;
+}): Promise<LessonFileUploadResult> {
+  await ensureAdmin();
+  if (!isStorageConfigured()) {
+    return { ok: false, error: "R2 no está configurado en este entorno." };
+  }
+  if (!ALLOWED_PDF_TYPES.has(input.contentType)) {
+    return { ok: false, error: "Solo se admiten archivos PDF." };
+  }
+  if (!input.filename || input.filename.length > 200) {
+    return { ok: false, error: "Nombre de archivo inválido." };
+  }
+  const key = buildLessonFileKey({
+    lessonId: crypto.randomUUID(),
     filename: input.filename,
   });
   const { uploadUrl } = await createUploadUrl({

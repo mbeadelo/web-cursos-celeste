@@ -2,6 +2,9 @@ import { z } from "zod";
 
 const baseSchema = z.object({
   title: z.string().trim().min(2, "Mínimo 2 caracteres").max(200),
+  // Optional module/fase to group the lesson under. Empty string / undefined
+  // means "sin fase" (loose lesson). Normalised to null in the action.
+  moduleId: z.string().trim().max(50).optional(),
 });
 
 export const VideoLessonSchema = baseSchema.extend({
