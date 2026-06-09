@@ -139,9 +139,15 @@ export default async function StudentCoursePage({
   // render flat — either as the whole list (courses/packs without fases) or
   // under "Otras lecciones" when fases exist.
   const hasModules = course.modules.length > 0;
-  const lessonsInModule = (moduleId: string | null) =>
+  const moduleIds = new Set(course.modules.map((m) => m.id));
+  const lessonsInModule = (moduleId: string) =>
     course.lessons.filter((l) => l.moduleId === moduleId);
-  const looseLessons = lessonsInModule(null);
+  // Loose = no module OR a module that no longer exists (orphaned). Including the
+  // orphan case is essential: otherwise such lessons vanish from the sidebar
+  // while still counting toward the progress total, so it never reaches 100%.
+  const looseLessons = course.lessons.filter(
+    (l) => !l.moduleId || !moduleIds.has(l.moduleId)
+  );
 
   const renderLesson = (l: (typeof course.lessons)[number]) => {
     const isActive = active?.id === l.id;

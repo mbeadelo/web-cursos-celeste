@@ -107,8 +107,15 @@ export function LessonsList({
         <div>
           <h2 className="text-lg font-semibold">{pdfOnly ? "Materiales (PDF)" : "Lecciones"}</h2>
           <p className="text-sm text-neutral-600">
-            {lessons.length} {pdfOnly ? "material" : "lección"}
-            {lessons.length === 1 ? "" : pdfOnly ? "es" : "es"}. Arrastra para reordenar.
+            {lessons.length}{" "}
+            {pdfOnly
+              ? lessons.length === 1
+                ? "material"
+                : "materiales"
+              : lessons.length === 1
+                ? "lección"
+                : "lecciones"}
+            . Arrastra para reordenar.
           </p>
         </div>
         <Button onClick={() => setAddOpen(true)}>

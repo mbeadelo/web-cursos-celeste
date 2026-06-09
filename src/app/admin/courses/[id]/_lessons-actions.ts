@@ -56,6 +56,24 @@ function mapInputToData(input: LessonInput) {
   }
 }
 
+/**
+ * Returns the moduleId only if that module exists AND belongs to this course;
+ * otherwise null. Prevents attaching a lesson to another course's (or a
+ * deleted) module, which would orphan it from the student view or throw a FK
+ * error.
+ */
+async function resolveModuleId(
+  courseId: string,
+  moduleId: string | null
+): Promise<string | null> {
+  if (!moduleId) return null;
+  const found = await db.module.findFirst({
+    where: { id: moduleId, courseId },
+    select: { id: true },
+  });
+  return found ? moduleId : null;
+}
+
 export async function createLesson(
   courseId: string,
   raw: LessonInput
@@ -77,9 +95,11 @@ export async function createLesson(
   });
   const nextOrder = (last?.order ?? 0) + 1;
 
+  const data = mapInputToData(parsed.data);
   await db.lesson.create({
     data: {
-      ...mapInputToData(parsed.data),
+      ...data,
+      moduleId: await resolveModuleId(courseId, data.moduleId),
       courseId,
       order: nextOrder,
     },
@@ -103,13 +123,22 @@ export async function updateLesson(
     };
   }
 
-  const updated = await db.lesson.update({
+  const existing = await db.lesson.findUnique({
     where: { id: lessonId },
-    data: mapInputToData(parsed.data),
     select: { courseId: true },
   });
+  if (!existing) return { ok: false, error: "Lección no encontrada." };
 
-  revalidatePath(`/admin/courses/${updated.courseId}`);
+  const data = mapInputToData(parsed.data);
+  await db.lesson.update({
+    where: { id: lessonId },
+    data: {
+      ...data,
+      moduleId: await resolveModuleId(existing.courseId, data.moduleId),
+    },
+  });
+
+  revalidatePath(`/admin/courses/${existing.courseId}`);
   return { ok: true };
 }
 
