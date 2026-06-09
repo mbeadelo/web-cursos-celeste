@@ -18,7 +18,13 @@ type Card = {
   badge: Badge | null;
 };
 
-export async function FeaturedCourses() {
+export async function FeaturedCourses({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle: string;
+}) {
   const real = await db.course.findMany({
     where: { published: true },
     orderBy: [
@@ -51,7 +57,7 @@ export async function FeaturedCourses() {
       <section className="space-y-6">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Cursos destacados
+            {title}
           </h2>
           <p className="text-neutral-600 mt-1">
             Estamos preparando los primeros cursos. Vuelve pronto.
@@ -66,11 +72,9 @@ export async function FeaturedCourses() {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Cursos destacados
+            {title}
           </h2>
-          <p className="text-neutral-600 mt-1">
-            Lo más buscado por la comunidad. Desliza para ver más.
-          </p>
+          <p className="text-neutral-600 mt-1">{subtitle}</p>
         </div>
         <Link
           href="/cursos"

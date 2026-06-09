@@ -11,6 +11,14 @@ export default async function Home() {
 
   const heroBadge = pickContent(content, "home.hero.badge");
   const heroSubtitle = pickContent(content, "home.hero.subtitle");
+  const heroCtaPrimary = pickContent(content, "home.hero.cta_primary");
+  const heroCtaLogin = pickContent(content, "home.hero.cta_login");
+  const heroCtaDashboard = pickContent(content, "home.hero.cta_dashboard");
+  const featuredTitle = pickContent(content, "home.featured.title");
+  const featuredSubtitle = pickContent(content, "home.featured.subtitle");
+  const ctaTitle = pickContent(content, "home.cta.title");
+  const ctaBody = pickContent(content, "home.cta.body");
+  const ctaButton = pickContent(content, "home.cta.button");
   const aboutEyebrow = pickContent(content, "about.eyebrow");
   const aboutTitle = pickContent(content, "about.title");
   const aboutBody = pickContent(content, "about.body");
@@ -97,21 +105,21 @@ export default async function Home() {
                 href="/cursos"
                 className="rounded-full bg-brand-celeste text-brand-celeste-foreground px-6 py-3 font-medium hover:bg-brand-celeste-deep transition shadow-sm"
               >
-                Ver cursos
+                {heroCtaPrimary}
               </Link>
               {session ? (
                 <Link
                   href="/dashboard"
                   className="rounded-full border border-neutral-300 bg-white px-6 py-3 font-medium hover:border-brand-celeste hover:text-brand-celeste-deep transition"
                 >
-                  Ir a mis cursos
+                  {heroCtaDashboard}
                 </Link>
               ) : (
                 <Link
                   href="/login"
                   className="rounded-full border border-neutral-300 bg-white px-6 py-3 font-medium hover:border-brand-celeste hover:text-brand-celeste-deep transition"
                 >
-                  Acceder
+                  {heroCtaLogin}
                 </Link>
               )}
             </div>
@@ -129,7 +137,7 @@ export default async function Home() {
 
         {/* ── Featured courses carousel ─────────────────── */}
         <section className="max-w-6xl mx-auto px-6 py-20">
-          <FeaturedCourses />
+          <FeaturedCourses title={featuredTitle} subtitle={featuredSubtitle} />
         </section>
 
         {/* ── Sobre mí ───────────────────────────────────── */}
@@ -172,18 +180,15 @@ export default async function Home() {
         <section className="max-w-3xl mx-auto px-6 pb-24">
           <div className="rounded-2xl bg-gradient-to-br from-brand-celeste to-brand-magenta p-10 md:p-14 text-center text-white shadow-lg">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-              ¿Empezamos?
+              {ctaTitle}
             </h2>
-            <p className="mt-3 text-white/90 leading-relaxed">
-              Echa un vistazo al catálogo y elige por dónde empezar. Te
-              esperamos en la plaza.
-            </p>
+            <p className="mt-3 text-white/90 leading-relaxed">{ctaBody}</p>
             <div className="mt-6 flex flex-wrap gap-3 justify-center">
               <Link
                 href="/cursos"
                 className="rounded-full bg-white text-brand-celeste-deep px-6 py-3 font-semibold hover:bg-neutral-100 transition"
               >
-                Ver todos los cursos
+                {ctaButton}
               </Link>
             </div>
           </div>

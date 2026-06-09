@@ -25,6 +25,27 @@ export const SITE_CONTENT_KEYS = {
     default:
       "Aprende a tu ritmo con cursos grabados, material descargable y acompañamiento real. Sin prisa, sin agobios, a tu manera.",
   },
+  "home.hero.cta_primary": {
+    type: "text",
+    section: "Home — Hero",
+    label: "Botón principal",
+    hint: "Lleva al catálogo de cursos.",
+    default: "Ver cursos",
+  },
+  "home.hero.cta_login": {
+    type: "text",
+    section: "Home — Hero",
+    label: "Botón secundario (visitante)",
+    hint: "Lo ven quienes no han iniciado sesión.",
+    default: "Acceder",
+  },
+  "home.hero.cta_dashboard": {
+    type: "text",
+    section: "Home — Hero",
+    label: "Botón secundario (con sesión)",
+    hint: "Lo ven quienes ya han iniciado sesión.",
+    default: "Ir a mis cursos",
+  },
   "home.stats.s1.number": {
     type: "text",
     section: "Home — Cifras",
@@ -81,6 +102,21 @@ export const SITE_CONTENT_KEYS = {
     hint: "",
     default: "A tu ritmo",
   },
+  "home.featured.title": {
+    type: "text",
+    section: "Home — Cursos destacados",
+    label: "Título",
+    hint: "",
+    default: "Cursos destacados",
+  },
+  "home.featured.subtitle": {
+    type: "text",
+    section: "Home — Cursos destacados",
+    label: "Subtítulo",
+    hint: "",
+    default: "Lo más buscado por la comunidad. Desliza para ver más.",
+  },
+
   "about.image": {
     type: "image",
     section: "Sobre mí",
@@ -169,6 +205,30 @@ export const SITE_CONTENT_KEYS = {
     hint: "",
     default:
       "No estás sola en esto. Pregunta cuando te atasques y resuelves dudas con la comunidad.",
+  },
+
+  // ─── Home — CTA final ───
+  "home.cta.title": {
+    type: "text",
+    section: "Home — CTA final",
+    label: "Título",
+    hint: "",
+    default: "¿Empezamos?",
+  },
+  "home.cta.body": {
+    type: "text",
+    section: "Home — CTA final",
+    label: "Texto",
+    hint: "",
+    default:
+      "Echa un vistazo al catálogo y elige por dónde empezar. Te esperamos en la plaza.",
+  },
+  "home.cta.button": {
+    type: "text",
+    section: "Home — CTA final",
+    label: "Botón",
+    hint: "Lleva al catálogo de cursos.",
+    default: "Ver todos los cursos",
   },
 
   // ─── Email — Bienvenida tras compra ───
