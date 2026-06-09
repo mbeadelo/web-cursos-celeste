@@ -26,7 +26,8 @@ export async function FeaturedCourses({
   subtitle: string;
 }) {
   const real = await db.course.findMany({
-    where: { published: true, type: "COURSE" },
+    // Destacados: cursos Y packs publicados (ambos enlazan a /cursos/[slug]).
+    where: { published: true },
     orderBy: [
       { featuredOrder: { sort: "asc", nulls: "last" } },
       { createdAt: "desc" },
