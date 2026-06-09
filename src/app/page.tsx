@@ -231,8 +231,10 @@ function Feature({
     <div
       className={`rounded-2xl bg-white ring-1 ring-foreground/10 p-6 space-y-2 transition hover:-translate-y-0.5 ${t.ring}`}
     >
-      <div className={`size-10 rounded-xl ${t.dot}`} />
-      <h3 className="font-semibold text-lg pt-2">{title}</h3>
+      <div className="flex items-center gap-3">
+        <div className={`size-10 rounded-xl shrink-0 ${t.dot}`} />
+        <h3 className="font-semibold text-lg">{title}</h3>
+      </div>
       <p className="text-sm text-neutral-600 leading-relaxed">{body}</p>
     </div>
   );
