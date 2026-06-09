@@ -77,7 +77,7 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 
 - Cabeceras estáticas (HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP) en `next.config.ts`.
 - **Content-Security-Policy con nonce por petición** en `src/proxy.ts`. Next.js 16 propaga el nonce automáticamente cuando ve el header `Content-Security-Policy` en el request.
-- Allow-list incluye Mux (`*.mux.com`, `*.litix.io`), Stripe (`js.stripe.com`), Sentry (`*.ingest.sentry.io`), Vercel vitals.
+- Allow-list incluye Mux (`*.mux.com`, `*.litix.io`), R2 uploads (`*.r2.cloudflarestorage.com` en `connect-src` — necesario para subir covers/PDFs por PUT directo), Stripe (`js.stripe.com`), Sentry (`*.ingest.sentry.io`), Vercel vitals.
 - Si un nuevo proveedor inyecta scripts, **añadir su origen** a `script-src`/`connect-src`/`frame-src` en `src/proxy.ts`. No usar `'unsafe-inline'` para scripts.
 - Si renombras o mueves `proxy.ts` y dev devuelve 500 con `MODULE_UNPARSABLE`, borra `.next/` antes de relevantar.
 
