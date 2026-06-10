@@ -9,7 +9,6 @@ import { getAllContent, pickContent } from "@/lib/site-content";
 export default async function Home() {
   const [session, content] = await Promise.all([auth(), getAllContent()]);
 
-  const heroBadge = pickContent(content, "home.hero.badge");
   const heroSubtitle = pickContent(content, "home.hero.subtitle");
   const heroCtaPrimary = pickContent(content, "home.hero.cta_primary");
   const heroCtaLogin = pickContent(content, "home.hero.cta_login");
@@ -80,23 +79,22 @@ export default async function Home() {
             className="absolute top-40 -left-32 -z-10 size-[420px] rounded-full bg-brand-celeste/15 blur-3xl"
           />
 
-          <div className="max-w-5xl mx-auto px-6 pt-16 pb-24 text-center space-y-8">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/brand/logo-icon.png"
-              alt="Bienvenido a tu plaza"
-              className="mx-auto h-28 md:h-36 w-auto"
-            />
-            <p className="inline-flex items-center gap-2 rounded-full bg-white ring-1 ring-foreground/10 px-3 py-1 text-xs font-medium text-neutral-700">
-              <span className="size-1.5 rounded-full bg-brand-celeste" />
-              {heroBadge}
-            </p>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
-              Bienvenido a{" "}
-              <span className="bg-gradient-to-r from-brand-celeste to-brand-magenta bg-clip-text text-transparent">
-                tu plaza
-              </span>
-            </h1>
+          <div className="max-w-5xl mx-auto px-6 pt-20 pb-24 text-center space-y-8">
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/logo-icon.png"
+                alt=""
+                aria-hidden
+                className="h-16 md:h-24 w-auto shrink-0"
+              />
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
+                Bienvenido a{" "}
+                <span className="bg-gradient-to-r from-brand-celeste to-brand-magenta bg-clip-text text-transparent">
+                  tu plaza
+                </span>
+              </h1>
+            </div>
             <p className="max-w-2xl mx-auto text-lg md:text-xl text-neutral-600 leading-relaxed">
               {heroSubtitle}
             </p>
@@ -136,7 +134,7 @@ export default async function Home() {
         </section>
 
         {/* ── Featured courses carousel ─────────────────── */}
-        <section className="max-w-6xl mx-auto px-6 py-20">
+        <section className="max-w-6xl mx-auto px-6 pt-16 pb-10">
           <FeaturedCourses title={featuredTitle} subtitle={featuredSubtitle} />
         </section>
 
@@ -176,21 +174,56 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* ── CTA final ─────────────────────────────────── */}
-        <section className="max-w-3xl mx-auto px-6 pb-24 text-center space-y-6">
-          <div className="space-y-3">
+        {/* ── Testimonios (DEMO — quitar cuando haya reseñas reales) ──── */}
+        <section className="max-w-5xl mx-auto px-6 py-16 space-y-10">
+          <div className="text-center space-y-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-brand-magenta-deep font-semibold">
+              Testimonios
+            </p>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-              {ctaTitle}
+              Lo que cuentan quienes ya están dentro
             </h2>
-            <p className="text-neutral-600 leading-relaxed">{ctaBody}</p>
           </div>
-          <div className="flex flex-wrap gap-3 justify-center">
-            <Link
-              href="/cursos"
-              className="rounded-full bg-brand-celeste text-brand-celeste-foreground px-6 py-3 font-semibold hover:bg-brand-celeste-deep transition shadow-sm"
-            >
-              {ctaButton}
-            </Link>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {DEMO_TESTIMONIOS.map((t, i) => (
+              <figure
+                key={i}
+                className="rounded-2xl bg-white ring-1 ring-foreground/10 p-6 space-y-4"
+              >
+                <div className="text-brand-amber text-sm tracking-widest" aria-hidden>
+                  ★★★★★
+                </div>
+                <blockquote className="text-sm text-neutral-700 leading-relaxed">
+                  “{t.body}”
+                </blockquote>
+                <figcaption className="text-sm font-semibold">
+                  {t.name}{" "}
+                  <span className="text-neutral-500 font-normal">· {t.role}</span>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+
+        {/* ── CTA final ─────────────────────────────────── */}
+        <section className="max-w-4xl mx-auto px-6 pb-24">
+          <div className="rounded-3xl bg-brand-celeste/5 ring-1 ring-brand-celeste/15 px-6 py-14 text-center space-y-6">
+            <div className="space-y-3">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+                {ctaTitle}
+              </h2>
+              <p className="text-neutral-600 leading-relaxed max-w-2xl mx-auto">
+                {ctaBody}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Link
+                href="/cursos"
+                className="rounded-full bg-brand-celeste text-brand-celeste-foreground px-7 py-3.5 font-semibold hover:bg-brand-celeste-deep transition shadow-sm"
+              >
+                {ctaButton}
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -210,6 +243,26 @@ function Stat({ number, label }: { number: string; label: string }) {
     </div>
   );
 }
+
+// DEMO — testimonios de ejemplo para maquetar la sección. Quitar este array y
+// la sección "Testimonios" del JSX cuando haya reseñas reales de alumnas.
+const DEMO_TESTIMONIOS = [
+  {
+    name: "María G.",
+    role: "Aprobada 2024",
+    body: "El acompañamiento marcó la diferencia. Llegué al examen con un método claro y seguridad, no a ciegas como otras veces.",
+  },
+  {
+    name: "Laura M.",
+    role: "Plaza en su 2ª convocatoria",
+    body: "Las situaciones de aprendizaje se me hacían un mundo. Con las sesiones lo entendí y dejé de bloquearme.",
+  },
+  {
+    name: "Sergio P.",
+    role: "Opositor",
+    body: "Material actualizado y al grano. Estudiar a mi ritmo con los vídeos y PDFs me dejó compaginarlo con el trabajo.",
+  },
+];
 
 const FEATURE_TONES = {
   celeste: { dot: "bg-brand-celeste", ring: "hover:ring-brand-celeste/50" },
