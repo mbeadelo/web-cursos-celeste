@@ -174,55 +174,56 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* ── Testimonios (DEMO — quitar cuando haya reseñas reales) ──── */}
-        <section className="max-w-5xl mx-auto px-6 py-16 space-y-10">
-          <div className="text-center space-y-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-brand-magenta-deep font-semibold">
-              Testimonios
-            </p>
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-              Lo que cuentan quienes ya están dentro
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {DEMO_TESTIMONIOS.map((t, i) => (
-              <figure
-                key={i}
-                className="rounded-2xl bg-white ring-1 ring-foreground/10 p-6 space-y-4"
-              >
-                <div className="text-brand-amber text-sm tracking-widest" aria-hidden>
-                  ★★★★★
-                </div>
-                <blockquote className="text-sm text-neutral-700 leading-relaxed">
-                  “{t.body}”
-                </blockquote>
-                <figcaption className="text-sm font-semibold">
-                  {t.name}{" "}
-                  <span className="text-neutral-500 font-normal">· {t.role}</span>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </section>
-
-        {/* ── CTA final ─────────────────────────────────── */}
-        <section className="max-w-4xl mx-auto px-6 pb-24">
-          <div className="rounded-3xl bg-brand-celeste/5 ring-1 ring-brand-celeste/15 px-6 py-14 text-center space-y-6">
-            <div className="space-y-3">
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-                {ctaTitle}
-              </h2>
-              <p className="text-neutral-600 leading-relaxed max-w-2xl mx-auto">
-                {ctaBody}
-              </p>
+        {/* ── Testimonios + CTA (degradado celeste compartido, full-width) ── */}
+        <section className="bg-gradient-to-b from-white via-brand-celeste/5 to-brand-celeste/10 border-y border-neutral-200">
+          <div className="max-w-5xl mx-auto px-6 py-20 space-y-16">
+            {/* Testimonios (DEMO — quitar cuando haya reseñas reales) */}
+            <div className="space-y-10">
+              <div className="text-center space-y-3">
+                <p className="text-xs uppercase tracking-[0.2em] text-brand-magenta-deep font-semibold">
+                  Testimonios
+                </p>
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+                  Lo que cuentan quienes ya están dentro
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {DEMO_TESTIMONIOS.map((t, i) => (
+                  <figure
+                    key={i}
+                    className="rounded-2xl bg-white ring-1 ring-foreground/10 p-6 space-y-4 shadow-sm"
+                  >
+                    <div className="text-brand-amber text-sm tracking-widest" aria-hidden>
+                      ★★★★★
+                    </div>
+                    <blockquote className="text-sm text-neutral-700 leading-relaxed">
+                      “{t.body}”
+                    </blockquote>
+                    <figcaption className="text-sm font-semibold">
+                      {t.name}{" "}
+                      <span className="text-neutral-500 font-normal">· {t.role}</span>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Link
-                href="/cursos"
-                className="rounded-full bg-brand-celeste text-brand-celeste-foreground px-7 py-3.5 font-semibold hover:bg-brand-celeste-deep transition shadow-sm"
-              >
-                {ctaButton}
-              </Link>
+
+            {/* CTA "Empezamos" — plano sobre el degradado, sin recuadro */}
+            <div className="text-center space-y-6 max-w-2xl mx-auto">
+              <div className="space-y-3">
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+                  {ctaTitle}
+                </h2>
+                <p className="text-neutral-600 leading-relaxed">{ctaBody}</p>
+              </div>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <Link
+                  href="/cursos"
+                  className="rounded-full bg-brand-celeste text-brand-celeste-foreground px-7 py-3.5 font-semibold hover:bg-brand-celeste-deep transition shadow-sm"
+                >
+                  {ctaButton}
+                </Link>
+              </div>
             </div>
           </div>
         </section>
