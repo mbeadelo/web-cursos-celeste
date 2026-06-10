@@ -47,6 +47,8 @@ export async function POST(req: Request) {
     return new Response("Body JSON inválido", { status: 400 });
   }
 
+  console.log(`[mux webhook] recibido: ${event.type ?? "(sin type)"}`);
+
   try {
     switch (event.type) {
       case "video.upload.asset_created":
@@ -110,8 +112,7 @@ async function handleAssetReady(data: Record<string, unknown> | undefined) {
 
   if (!playbackId) return;
 
-  // Prefer matching by assetId (set in upload.asset_created); fall back to
-  // passthrough (lessonId).
+  // 1) Match by assetId (set earlier by upload.asset_created).
   if (assetId) {
     const updated = await db.lesson
       .updateMany({
@@ -122,6 +123,22 @@ async function handleAssetReady(data: Record<string, unknown> | undefined) {
     if (updated.count > 0) return;
   }
 
+  // 2) Match by upload_id — robust against the "upload on create" race: the
+  // asset.created event can land before the lesson row exists (so muxAssetId
+  // was never set), but the lesson always carries muxUploadId. asset.ready
+  // includes upload_id, so we can still find and fill the lesson here.
+  const uploadId = typeof data.upload_id === "string" ? data.upload_id : null;
+  if (uploadId) {
+    const updated = await db.lesson
+      .updateMany({
+        where: { muxUploadId: uploadId },
+        data: { muxAssetId: assetId, muxPlaybackId: playbackId },
+      })
+      .catch(() => ({ count: 0 }));
+    if (updated.count > 0) return;
+  }
+
+  // 3) Match by passthrough (legacy upload-on-edit flow set it to lessonId).
   if (passthrough) {
     await db.lesson
       .update({
