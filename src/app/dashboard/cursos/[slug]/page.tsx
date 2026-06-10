@@ -154,7 +154,9 @@ export default async function StudentCoursePage({
     (l) => !l.moduleId || !moduleIds.has(l.moduleId)
   );
 
-  const renderLesson = (l: (typeof course.lessons)[number]) => {
+  // idx is the position WITHIN its group (fase), so numbering restarts at 1 per
+  // fase. Each `.map(renderLesson)` over a fase's lessons passes a fresh index.
+  const renderLesson = (l: (typeof course.lessons)[number], idx: number) => {
     const isActive = active?.id === l.id;
     const lessonCompleted = Boolean(progressByLesson.get(l.id)?.completedAt);
     return (
@@ -178,7 +180,7 @@ export default async function StudentCoursePage({
               }
               aria-label={lessonCompleted ? "Lección completada" : undefined}
             >
-              {lessonCompleted ? "✓" : l.order}
+              {lessonCompleted ? "✓" : idx + 1}
             </span>
             <div className="min-w-0 flex-1">
               <p
