@@ -10,13 +10,6 @@
  * `default` is what users see if no row exists in `SiteContent` for the key.
  */
 export const SITE_CONTENT_KEYS = {
-  "home.hero.badge": {
-    type: "text",
-    section: "Home — Hero",
-    label: "Badge sobre el titular",
-    hint: "Texto pequeño con un punto azul, encima del titular.",
-    default: "Cursos online · Acceso permanente",
-  },
   "home.hero.subtitle": {
     type: "text",
     section: "Home — Hero",
