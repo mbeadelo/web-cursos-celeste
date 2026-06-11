@@ -46,6 +46,10 @@ const schema = z.object({
   // no-op so dev/test environments work without provisioning Redis.
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+
+  // Anthropic (chatbot de soporte). Optional — if unset, the chatbot is a
+  // no-op (the widget never renders). Goes in the Production scope of Vercel.
+  ANTHROPIC_API_KEY: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);

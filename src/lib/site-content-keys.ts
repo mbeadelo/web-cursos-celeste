@@ -263,6 +263,56 @@ export const SITE_CONTENT_KEYS = {
     hint: "Botón principal del email. Apunta siempre a la página de acceso.",
     default: "Acceder ahora",
   },
+
+  // ─── Chatbot de soporte ───
+  // El bot solo aparece en la web si "Activar" está en "on" Y existe la clave
+  // ANTHROPIC_API_KEY en el entorno. La personalidad se añade a unas reglas de
+  // seguridad fijas (no las puede saltar). El catálogo y precios se inyectan
+  // automáticamente desde la base de datos, no hay que mantenerlos aquí.
+  "chatbot.enabled": {
+    type: "text",
+    section: "Chatbot de soporte",
+    label: "Activar",
+    hint: 'Escribe "on" para mostrar el chatbot en la web, "off" para ocultarlo.',
+    default: "off",
+  },
+  "chatbot.title": {
+    type: "text",
+    section: "Chatbot de soporte",
+    label: "Nombre que se muestra",
+    hint: "Aparece en la cabecera del chat. Deja claro que es un asistente.",
+    default: "Asistente de la plaza",
+  },
+  "chatbot.welcome": {
+    type: "text",
+    section: "Chatbot de soporte",
+    label: "Mensaje de bienvenida",
+    hint: "Primer mensaje que ve el visitante al abrir el chat.",
+    default:
+      "¡Hola! 👋 Soy la asistente virtual de la plaza. Puedo ayudarte con dudas sobre los cursos, cómo acceder o cómo funciona la plataforma. ¿En qué te echo una mano?",
+  },
+  "chatbot.persona": {
+    type: "text",
+    section: "Chatbot de soporte",
+    label: "Personalidad e instrucciones",
+    hint: "Tono y matices del bot. Las reglas de seguridad (solo hablar de la plaza, derivar pagos al email, etc.) ya están fijadas aparte.",
+    default:
+      "Hablas en español, cercana y de tú, con un punto cálido y motivador (como una compañera que ha pasado por la oposición). Frases cortas, sin tecnicismos. Si no sabes algo con certeza, lo dices y ofreces escribir al email de contacto.",
+  },
+  "chatbot.avatar": {
+    type: "image",
+    section: "Chatbot de soporte",
+    label: "Avatar / mascota",
+    hint: "Imagen del botón del chat. Cuadrada (1:1). Si la dejas vacía, se usa el logo.",
+    default: "/brand/logo-icon.png",
+  },
+  "chatbot.contact_email": {
+    type: "text",
+    section: "Chatbot de soporte",
+    label: "Email de contacto",
+    hint: "A donde deriva el bot lo que no puede resolver (pagos, reembolsos, temas legales).",
+    default: "contacto@bienvenidoatuplaza.com",
+  },
 } as const satisfies Record<
   string,
   {

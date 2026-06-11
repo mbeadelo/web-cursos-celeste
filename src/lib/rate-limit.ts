@@ -66,6 +66,13 @@ export const loginIpLimiter = makeLimiter("login:ip", 10, "15 m");
 // loop.
 export const checkoutIpLimiter = makeLimiter("checkout:ip", 10, "1 m");
 
+// Chatbot: 15 messages/min and 120/hour per IP. The chat endpoint is an
+// unauthenticated POST that spends Anthropic tokens, so we cap per-IP to keep a
+// tight loop from running up the bill. The hard ceiling is the spending cap in
+// the Anthropic console.
+export const chatIpLimiter = makeLimiter("chat:ip", 15, "1 m");
+export const chatIpHourLimiter = makeLimiter("chat:ip:h", 120, "1 h");
+
 /**
  * Best-effort client IP from common proxy headers. Never trust this for
  * security decisions other than rate limiting (it's spoofable on a misconfig).
