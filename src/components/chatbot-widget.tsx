@@ -5,6 +5,10 @@ import { usePathname } from "next/navigation";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+// El botón flotante muestra el avatar (la "mini Celeste" mascota, editable
+// desde el admin); la cabecera del chat abierto muestra el logo de marca.
+const BRAND_LOGO = "/brand/logo-icon.png";
+
 /**
  * Floating support chatbot. Rendered by the root layout only when the admin has
  * switched it on and the API key exists. Talks to /api/chat (same origin) and
@@ -93,7 +97,7 @@ export function ChatbotWidget({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Cerrar chat" : "Abrir chat de ayuda"}
-        className="fixed bottom-5 right-5 z-50 size-14 rounded-full overflow-hidden ring-2 ring-white shadow-lg bg-white transition hover:scale-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-celeste/50"
+        className="fixed bottom-5 right-5 z-50 size-[84px] rounded-full overflow-hidden ring-2 ring-white shadow-lg bg-white transition hover:scale-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-celeste/50"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -105,14 +109,14 @@ export function ChatbotWidget({
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-24 right-5 z-50 flex w-[min(92vw,24rem)] h-[min(70vh,34rem)] flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-foreground/15 shadow-2xl">
-          {/* Header */}
+        <div className="fixed bottom-32 right-5 z-50 flex w-[min(92vw,24rem)] h-[min(70vh,34rem)] flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-foreground/15 shadow-2xl">
+          {/* Header — logo de marca (no el avatar del botón) */}
           <div className="flex items-center gap-3 bg-gradient-to-r from-brand-celeste to-brand-magenta px-4 py-3 text-white">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={avatar}
+              src={BRAND_LOGO}
               alt=""
-              className="size-9 rounded-full object-cover ring-2 ring-white/40"
+              className="size-9 rounded-full object-contain bg-white p-1 ring-2 ring-white/40"
             />
             <div className="min-w-0">
               <p className="font-semibold leading-tight truncate">{title}</p>
