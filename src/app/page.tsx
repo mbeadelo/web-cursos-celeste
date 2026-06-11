@@ -5,6 +5,12 @@ import { PublicFooter } from "@/components/public-footer";
 import { FeaturedCourses } from "@/components/featured-courses";
 import { AboutMe } from "@/components/about-me";
 import { getAllContent, pickContent } from "@/lib/site-content";
+import {
+  Footprints,
+  FileText,
+  HeartHandshake,
+  type LucideIcon,
+} from "lucide-react";
 
 export default async function Home() {
   const [session, content] = await Promise.all([auth(), getAllContent()]);
@@ -29,16 +35,19 @@ export default async function Home() {
       title: pickContent(content, "home.why.f1.title"),
       body: pickContent(content, "home.why.f1.body"),
       tone: "celeste" as const,
+      Icon: Footprints,
     },
     {
       title: pickContent(content, "home.why.f2.title"),
       body: pickContent(content, "home.why.f2.body"),
       tone: "amber" as const,
+      Icon: FileText,
     },
     {
       title: pickContent(content, "home.why.f3.title"),
       body: pickContent(content, "home.why.f3.body"),
       tone: "magenta" as const,
+      Icon: HeartHandshake,
     },
   ];
   const stats = [
@@ -168,6 +177,7 @@ export default async function Home() {
                   title={f.title}
                   body={f.body}
                   tone={f.tone}
+                  Icon={f.Icon}
                 />
               ))}
             </div>
@@ -275,10 +285,12 @@ function Feature({
   title,
   body,
   tone,
+  Icon,
 }: {
   title: string;
   body: string;
   tone: keyof typeof FEATURE_TONES;
+  Icon: LucideIcon;
 }) {
   const t = FEATURE_TONES[tone];
   return (
@@ -286,7 +298,11 @@ function Feature({
       className={`rounded-2xl bg-white ring-1 ring-foreground/10 p-6 space-y-2 transition hover:-translate-y-0.5 ${t.ring}`}
     >
       <div className="flex items-center gap-3">
-        <div className={`size-10 rounded-xl shrink-0 ${t.dot}`} />
+        <div
+          className={`size-10 rounded-xl shrink-0 flex items-center justify-center text-white ${t.dot}`}
+        >
+          <Icon className="size-5" strokeWidth={2.25} aria-hidden />
+        </div>
         <h3 className="font-semibold text-lg">{title}</h3>
       </div>
       <p className="text-sm text-neutral-600 leading-relaxed">{body}</p>
