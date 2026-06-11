@@ -33,10 +33,6 @@ const BodySchema = z.object({
  * message length capped) and output is capped at CHATBOT_MAX_TOKENS.
  */
 export async function POST(req: Request) {
-  if (!isChatbotConfigured()) {
-    return new Response("Chatbot no configurado", { status: 503 });
-  }
-
   // Honor the admin off-switch even on direct calls (don't spend tokens).
   const config = await getChatbotPublicConfig();
   if (!config.enabled) {
@@ -70,6 +66,17 @@ export async function POST(req: Request) {
   const last = messages[messages.length - 1];
   if (!last || last.role !== "user") {
     return new Response("Conversación inválida", { status: 400 });
+  }
+
+  // Preview mode: the widget is switched on but the API key isn't set yet.
+  // Reply with a fixed message so the look & feel can be tried end-to-end
+  // without spending (or needing) Anthropic credit.
+  if (!isChatbotConfigured()) {
+    return plainStream(
+      "👋 ¡Hola! Estoy en modo vista previa: el equipo todavía me está poniendo a punto, " +
+        "así que aún no puedo responder a tus preguntas. Muy pronto estaré lista para ayudarte " +
+        "con dudas sobre los cursos y la plataforma. ¡Gracias por tu paciencia!"
+    );
   }
 
   const system = await buildChatbotSystemPrompt();
@@ -110,6 +117,16 @@ export async function POST(req: Request) {
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "no-store",
       "X-Accel-Buffering": "no",
+    },
+  });
+}
+
+/** Stream a fixed string back in the same text/plain shape the widget reads. */
+function plainStream(text: string): Response {
+  return new Response(text, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
     },
   });
 }

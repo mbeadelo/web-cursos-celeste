@@ -52,13 +52,14 @@ function truthy(v: string): boolean {
 }
 
 /**
- * Config the public widget needs. `enabled` is true only when the API key is
- * present AND the admin switched it on — so a half-set-up bot never shows.
+ * Config the public widget needs. `enabled` is driven solely by the admin
+ * switch, so you can preview the widget (look + feel + welcome) before wiring up
+ * the API key. Whether it actually answers is separate: the /api/chat route
+ * falls back to a "preview mode" reply when ANTHROPIC_API_KEY is missing.
  */
 export async function getChatbotPublicConfig(): Promise<ChatbotPublicConfig> {
   const content = await getAllContent();
-  const enabled =
-    isChatbotConfigured() && truthy(pickContent(content, "chatbot.enabled"));
+  const enabled = truthy(pickContent(content, "chatbot.enabled"));
   const avatar =
     pickContent(content, "chatbot.avatar").trim() || "/brand/logo-icon.png";
   return {
