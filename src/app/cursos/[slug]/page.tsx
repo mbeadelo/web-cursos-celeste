@@ -152,10 +152,10 @@ export default async function CourseDetailPage({
       <main className="flex-1 px-6 py-12 pb-28 md:pb-12">
         <div className="max-w-5xl mx-auto space-y-12">
           <Link
-            href="/cursos"
+            href={course.type === "PACK" ? "/packs" : "/cursos"}
             className="text-sm text-neutral-600 hover:text-brand-celeste-deep transition"
           >
-            ← Volver al catálogo
+            ← Volver a {course.type === "PACK" ? "los packs" : "los cursos"}
           </Link>
 
           <header className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-10 items-start">

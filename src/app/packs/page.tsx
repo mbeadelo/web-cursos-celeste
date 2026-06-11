@@ -57,7 +57,7 @@ export default async function PacksPage() {
                   href={`/cursos/${c.slug}`}
                   className="group focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-celeste rounded-xl"
                 >
-                  <Card className="h-full transition group-hover:ring-brand-celeste/40 group-hover:-translate-y-0.5">
+                  <Card className="h-full pt-0 transition group-hover:ring-brand-celeste/40 group-hover:-translate-y-0.5">
                     <div className="relative">
                       {c.coverUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element

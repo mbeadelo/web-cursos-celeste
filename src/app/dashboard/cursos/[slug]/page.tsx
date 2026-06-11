@@ -387,16 +387,22 @@ function LessonBody({
 }) {
   if (lesson.type === "VIDEO") {
     if (lesson.muxPlaybackId) {
+      // Sticky on desktop: as the student scrolls through the lesson (mark
+      // complete, prev/next, reviews) the player stays pinned and follows them
+      // down. Plain CSS sticky — no scroll listeners. Off on mobile, where a
+      // pinned video would eat most of the small screen.
       return (
-        <VideoPlayer
-          playbackId={lesson.muxPlaybackId}
-          watermarkEmail={watermarkEmail}
-          watermarkIp={watermarkIp}
-          title={lesson.title}
-          tokens={tokens ?? undefined}
-          lessonId={lesson.id}
-          startAt={startAt}
-        />
+        <div className="lg:sticky lg:top-6 lg:z-20">
+          <VideoPlayer
+            playbackId={lesson.muxPlaybackId}
+            watermarkEmail={watermarkEmail}
+            watermarkIp={watermarkIp}
+            title={lesson.title}
+            tokens={tokens ?? undefined}
+            lessonId={lesson.id}
+            startAt={startAt}
+          />
+        </div>
       );
     }
     return (
