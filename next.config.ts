@@ -28,10 +28,13 @@ const securityHeaders = [
     value:
       "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=()",
   },
-  // Prevent clickjacking. CSP frame-ancestors is the modern equivalent
-  // (set in middleware), but X-Frame-Options is a defense-in-depth fallback
-  // for older browsers and intermediaries that strip CSP.
-  { key: "X-Frame-Options", value: "DENY" },
+  // Prevent clickjacking from OTHER origins. CSP frame-ancestors is the modern
+  // equivalent (set in middleware), but X-Frame-Options is a defense-in-depth
+  // fallback for older browsers and intermediaries that strip CSP.
+  // SAMEORIGIN (not DENY) so we can embed our own gated content — e.g. the
+  // lesson PDF viewer iframe at /api/lessons/[id]/file. Cross-origin framing
+  // (the actual clickjacking vector) is still blocked.
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   // Cross-origin isolation — opt-in, hardens against Spectre-style leaks.
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];

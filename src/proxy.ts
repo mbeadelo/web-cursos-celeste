@@ -109,7 +109,9 @@ function buildCsp(nonce: string, isDev: boolean): string {
     "object-src": "'none'",
     "base-uri": "'self'",
     "form-action": "'self'",
-    "frame-ancestors": "'none'",
+    // 'self' (not 'none') so our own pages can embed our gated content —
+    // e.g. the lesson PDF viewer iframe. Cross-origin framing stays blocked.
+    "frame-ancestors": "'self'",
     "upgrade-insecure-requests": "",
   };
 

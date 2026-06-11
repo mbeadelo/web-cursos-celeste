@@ -101,7 +101,7 @@ export async function FeaturedCourses({
             href={c.href}
             className="group snap-start shrink-0 w-72 sm:w-80 rounded-xl bg-white ring-1 ring-foreground/10 overflow-hidden transition hover:ring-brand-celeste/50 hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-celeste"
           >
-            <div className="relative aspect-[16/9] overflow-hidden">
+            <div className="relative aspect-[16/9] overflow-hidden rounded-t-xl">
               {c.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
