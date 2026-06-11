@@ -60,7 +60,10 @@ export default async function CursosPage() {
                   className="group focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-celeste rounded-xl"
                 >
                   <Card className="h-full pt-0 transition group-hover:ring-brand-celeste/40 group-hover:-translate-y-0.5">
-                    <div className="relative">
+                    {/* El propio wrapper recorta en redondo: así las esquinas
+                        superiores siguen redondeadas en hover (el transform del
+                        Card rompe el overflow-hidden del Card, no el del wrapper). */}
+                    <div className="relative rounded-t-xl overflow-hidden">
                       {c.coverUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
