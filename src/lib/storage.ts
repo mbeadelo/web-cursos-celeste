@@ -10,7 +10,7 @@
 
 import "server-only";
 import { S3Client } from "@aws-sdk/client-s3";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/lib/env";
 
@@ -92,6 +92,27 @@ export async function createUploadUrl(opts: {
     : `https://${cfg.accountId}.r2.cloudflarestorage.com/${cfg.bucket}/${opts.key}`;
 
   return { uploadUrl, publicUrl, key: opts.key };
+}
+
+/**
+ * Fetch an object's full bytes from R2 server-side, using S3 credentials.
+ *
+ * Used to serve gated lesson files (PDFs) through our own route instead of a
+ * public URL: the file never gets a shareable public link, and we can stamp a
+ * per-student watermark before streaming it. Throws if the object is missing.
+ */
+export async function getObjectBytes(key: string): Promise<Uint8Array> {
+  const cfg = readConfig();
+  const client = getClient();
+  const res = await client.send(
+    new GetObjectCommand({ Bucket: cfg.bucket, Key: key })
+  );
+  if (!res.Body) {
+    throw new Error(`R2 object sin body: ${key}`);
+  }
+  // The AWS SDK Body in Node is a stream with a helper to collect bytes.
+  const bytes = await res.Body.transformToByteArray();
+  return bytes;
 }
 
 /**

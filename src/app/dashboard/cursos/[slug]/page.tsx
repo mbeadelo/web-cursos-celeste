@@ -5,7 +5,6 @@ import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { canAccessCourse } from "@/lib/access";
-import { env } from "@/lib/env";
 import { signPlaybackTokens, type MuxPlaybackTokens } from "@/lib/mux";
 import { VideoPlayer } from "@/components/video-player";
 import { MarkLessonComplete } from "@/components/mark-lesson-complete";
@@ -415,7 +414,7 @@ function LessonBody({
   }
 
   if (lesson.type === "PDF") {
-    if (!lesson.fileKey || !env.R2_PUBLIC_URL) {
+    if (!lesson.fileKey) {
       return (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-white p-10 text-center">
           <p className="text-neutral-700 font-medium">PDF pendiente de subir</p>
@@ -425,24 +424,28 @@ function LessonBody({
         </div>
       );
     }
-    const url = `${env.R2_PUBLIC_URL.replace(/\/$/, "")}/${lesson.fileKey}`;
+    // Served through our gated route (Enrollment-checked + per-student
+    // watermark), never a public R2 URL. The viewer is a same-origin iframe
+    // (allowed by frame-src 'self'); the download link forces an attachment.
+    const fileUrl = `/api/lessons/${lesson.id}/file`;
     return (
-      <div className="rounded-2xl bg-gradient-to-br from-brand-celeste/10 to-brand-magenta/10 p-1">
-        <div className="rounded-[14px] bg-white p-8 md:p-10 text-center space-y-4">
-          <p className="text-5xl">📄</p>
-          <div className="space-y-1">
-            <p className="font-semibold text-lg">Material descargable</p>
-            <p className="text-sm text-neutral-600">
-              Abre o descarga el PDF para seguir la lección.
-            </p>
-          </div>
+      <div className="space-y-3">
+        <div className="rounded-2xl overflow-hidden border border-neutral-200 bg-neutral-100">
+          <iframe
+            src={fileUrl}
+            title={lesson.title}
+            className="w-full h-[78vh]"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-sm text-neutral-500">
+            📄 Documento con tu marca de agua personal. No lo compartas.
+          </p>
           <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block rounded-full bg-brand-celeste text-brand-celeste-foreground px-6 py-3 font-medium hover:bg-brand-celeste-deep transition"
+            href={`${fileUrl}?download=1`}
+            className="inline-block rounded-full bg-brand-celeste text-brand-celeste-foreground px-5 py-2.5 font-medium hover:bg-brand-celeste-deep transition"
           >
-            Abrir PDF
+            Descargar PDF
           </a>
         </div>
       </div>
