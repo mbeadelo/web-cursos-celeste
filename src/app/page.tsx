@@ -41,13 +41,13 @@ export default async function Home() {
       title: pickContent(content, "home.why.f2.title"),
       body: pickContent(content, "home.why.f2.body"),
       tone: "amber" as const,
-      Icon: FileText,
+      Icon: HeartHandshake,
     },
     {
       title: pickContent(content, "home.why.f3.title"),
       body: pickContent(content, "home.why.f3.body"),
       tone: "magenta" as const,
-      Icon: HeartHandshake,
+      Icon: FileText,
     },
   ];
   const stats = [
