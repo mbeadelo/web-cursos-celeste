@@ -447,7 +447,22 @@ function VideoUpload({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(lessonId ? { lessonId } : {}),
       });
-      if (!res.ok) throw new Error(`Mux upload-url falló (${res.status})`);
+      if (!res.ok) {
+        // Surface the real reason the server returned (Mux error detail), not
+        // just the status code.
+        let detail = "";
+        try {
+          const j = await res.json();
+          detail = j?.detail ?? j?.error ?? "";
+        } catch {
+          detail = (await res.text().catch(() => "")) || "";
+        }
+        throw new Error(
+          detail
+            ? `Mux (${res.status}): ${detail}`
+            : `Mux upload-url falló (${res.status})`
+        );
+      }
       signed = await res.json();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error pidiendo URL Mux");
