@@ -97,7 +97,7 @@ export function ChatbotWidget({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Cerrar chat" : "Abrir chat de ayuda"}
-        className="fixed bottom-5 right-5 z-50 size-[84px] rounded-full overflow-hidden ring-2 ring-white shadow-lg bg-white transition hover:scale-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-celeste/50"
+        className="fixed bottom-5 right-5 z-50 size-[140px] rounded-full overflow-hidden ring-2 ring-white shadow-lg bg-white transition hover:scale-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-celeste/50"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -109,7 +109,7 @@ export function ChatbotWidget({
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-32 right-5 z-50 flex w-[min(92vw,24rem)] h-[min(70vh,34rem)] flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-foreground/15 shadow-2xl">
+        <div className="fixed bottom-44 right-5 z-50 flex w-[min(92vw,24rem)] h-[min(70vh,34rem)] flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-foreground/15 shadow-2xl">
           {/* Header — logo de marca (no el avatar del botón) */}
           <div className="flex items-center gap-3 bg-gradient-to-r from-brand-celeste to-brand-magenta px-4 py-3 text-white">
             {/* eslint-disable-next-line @next/next/no-img-element */}
