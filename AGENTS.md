@@ -98,6 +98,13 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 - Server actions en `src/lib/progress.ts`. Validan `Enrollment` antes de escribir y devuelven `{ ok: false }` silencioso si fallan (no romper el reproductor).
 - Auto-complete a 95 % de duración en vídeo. PDF/TEXT requieren botón explícito.
 
+## URLs de lección (pretty URLs)
+
+- Forma: `/dashboard/cursos/<courseSlug>/<title-slug>-<lessonId>`. El **id `cuid` final es la clave real** de búsqueda; el slug del título es cosmético. No hay campo `slug` en `Lesson` (cero migraciones); estable al reordenar; renombrar solo cambia la parte cosmética.
+- Helpers en `src/lib/lesson-url.ts` (`lessonHref`, `lessonSegment`, `lessonIdFromParam`). El parseo se apoya en que los `cuid` **no llevan guiones** → el id es el segmento tras el último `-`.
+- `src/app/dashboard/cursos/[slug]/page.tsx` es solo un **redirector**: resuelve la primera lección (u honra `?l=<id>` legacy) y redirige a su URL canónica; solo renderiza si el curso no tiene lecciones (estado vacío).
+- La vista real vive en `src/app/dashboard/cursos/[slug]/[lesson]/page.tsx`. Si el slug cosmético está obsoleto, hace 308 a la forma canónica.
+
 ## Reseñas
 
 - Modelo `Review` con estados PENDING/APPROVED/REJECTED y `(userId, courseId)` único.
@@ -109,7 +116,7 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 Casi todo el texto público de la home es editable desde `/admin/contenido` sin tocar código, vía el modelo `SiteContent` (clave → valor).
 
 - **Catálogo de claves**: `src/lib/site-content-keys.ts` (`SITE_CONTENT_KEYS`). Cada clave declara `type`, `section`, `label`, `hint` y `default`. Para añadir un campo editable, basta con declarar la clave aquí y leerla donde toque.
-- **Tipos de campo**: `text` (input/textarea), `rich` (editor TipTap → HTML sanitizado con `src/lib/html.ts`), `image` (sube a R2 con URL firmada o pega URL; widget `src/app/admin/contenido/_image-field.tsx`).
+- **Tipos de campo**: `text` (input/textarea), `rich` (editor TipTap → HTML sanitizado con `src/lib/html.ts`), `image` (sube a R2 con URL firmada o pega URL; widget `src/app/admin/contenido/_image-field.tsx`). El sanitizado (`sanitizeRichHtml`) se aplica **al guardar**, no al renderizar, en los 3 puntos de escritura de HTML rich: artículos (`articulos/_actions.ts`), SiteContent rich (`contenido/_actions.ts`) y lecciones TEXT (`courses/[id]/_lessons-actions.ts`). Solo se sanitizan claves `rich`; los `text`/`image` se guardan literales.
 - **Lectura** (server-only, cacheado por petición): `getAllContent()` / `pickContent(map, key)` / `getContent(key)` en `src/lib/site-content.ts`. Si no hay fila en DB se usa el `default` de la clave.
 - **Guardado / reset**: server actions en `src/app/admin/contenido/_actions.ts` (`saveSiteContent`, `resetSiteContentKey`, `requestSiteImageUploadUrl`); `revalidatePath("/")` tras guardar. ⚠️ Vaciar un campo NO lo resetea (se ignora en el guardado); para volver al `default` hay que pulsar "Resetear" (borra la fila).
 - **Cobertura actual de la home**: Hero (badge, subtítulo, 3 botones), Cursos destacados (título, subtítulo), Sobre mí (etiqueta, título, cuerpo `rich`, imagen), Por qué esta plaza (etiqueta, título, 3 bloques), CTA final (título, texto, botón), Cifras. El `<h1>` "Bienvenido a tu plaza" del hero queda fijo (es la marca).

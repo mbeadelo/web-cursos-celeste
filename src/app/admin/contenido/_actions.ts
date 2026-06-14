@@ -9,6 +9,7 @@ import {
   buildSiteImageKey,
   createUploadUrl,
 } from "@/lib/storage";
+import { sanitizeRichHtml } from "@/lib/html";
 
 type ActionResult = { ok: true; updated: number } | { ok: false; error: string };
 
@@ -26,14 +27,21 @@ export async function saveSiteContent(formData: FormData): Promise<ActionResult>
   for (const key of Object.keys(SITE_CONTENT_KEYS) as SiteContentKey[]) {
     const raw = formData.get(key);
     if (typeof raw !== "string") continue;
-    const value = raw.trim();
-    if (value.length === 0) continue;
-    if (value.length > 50_000) {
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) continue;
+    if (trimmed.length > 50_000) {
       return {
         ok: false,
         error: `El campo "${SITE_CONTENT_KEYS[key].label}" es demasiado largo.`,
       };
     }
+    // `rich` fields carry TipTap HTML rendered with dangerouslySetInnerHTML —
+    // sanitize before storing. `text`/`image` fields are rendered as plain text
+    // and must NOT be sanitized (it would mangle legit `<`, `&`, etc.).
+    const value =
+      SITE_CONTENT_KEYS[key].type === "rich"
+        ? sanitizeRichHtml(trimmed)
+        : trimmed;
     updates.push({ key, value });
   }
 
