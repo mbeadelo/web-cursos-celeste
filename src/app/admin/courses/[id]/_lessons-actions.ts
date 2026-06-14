@@ -9,6 +9,7 @@ import {
   buildLessonFileKey,
   createUploadUrl,
 } from "@/lib/storage";
+import { sanitizeRichHtml } from "@/lib/html";
 
 type ActionResult =
   | { ok: true }
@@ -50,7 +51,8 @@ function mapInputToData(input: LessonInput) {
         type: "TEXT" as const,
         title: input.title,
         moduleId,
-        body: input.body,
+        // TipTap HTML rendered with dangerouslySetInnerHTML in the student view.
+        body: sanitizeRichHtml(input.body),
         muxPlaybackId: null,
         fileKey: null,
       };

@@ -6,6 +6,7 @@ import type { ZodError } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { ArticleInputSchema, type ArticleInput } from "@/lib/validations/article";
+import { sanitizeRichHtml } from "@/lib/html";
 
 type ActionResult =
   | { ok: true }
@@ -31,13 +32,16 @@ export async function createArticle(raw: ArticleInput): Promise<ActionResult> {
     };
   }
 
+  // Sanitize the TipTap HTML body before it ever touches the DB.
+  const data = { ...parsed.data, body: sanitizeRichHtml(parsed.data.body) };
+
   let created;
   try {
     created = await db.article.create({
       data: {
-        ...parsed.data,
+        ...data,
         authorId: userId,
-        publishedAt: parsed.data.published ? new Date() : null,
+        publishedAt: data.published ? new Date() : null,
       },
       select: { id: true },
     });
@@ -79,10 +83,13 @@ export async function updateArticle(
     ? current?.publishedAt ?? new Date()
     : null;
 
+  // Sanitize the TipTap HTML body before it ever touches the DB.
+  const data = { ...parsed.data, body: sanitizeRichHtml(parsed.data.body) };
+
   try {
     await db.article.update({
       where: { id },
-      data: { ...parsed.data, publishedAt },
+      data: { ...data, publishedAt },
     });
   } catch (err: unknown) {
     if (isUniqueConstraint(err, "slug")) {
