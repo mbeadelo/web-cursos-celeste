@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Correcciones IA · Decisiones y hoja de ruta</title>
+<style>
+  :root{
+    --teal:#2FB8C8; --teal-deep:#1f8a96;
+    --morado:#8A5FC0; --morado-deep:#6b46a0;
+    --ambar:#F0A828; --ambar-deep:#c8870f;
+    --ink:#1c1c22; --muted:#5d5d68; --line:#e6e3dc;
+    --bg:#f7f5f0; --card:#ffffff; --ok:#2f9e5b; --no:#cf4b3c;
+    --radius:16px;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:920px;margin:0 auto;padding:0 22px}
+
+  header.hero{
+    background:linear-gradient(135deg,var(--teal) 0%,var(--morado) 100%);
+    color:#fff;padding:54px 0 64px;
+  }
+  .hero .wrap{position:relative}
+  .kicker{text-transform:uppercase;letter-spacing:.14em;font-size:.72rem;font-weight:700;opacity:.85;margin:0 0 10px}
+  .hero h1{margin:0 0 12px;font-size:2.2rem;line-height:1.15;font-weight:800;letter-spacing:-.02em}
+  .hero p{margin:0;max-width:60ch;font-size:1.02rem;opacity:.95}
+  .hero .meta{margin-top:18px;font-size:.8rem;opacity:.8}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    margin:-34px auto 0;padding:14px 18px;display:flex;flex-wrap:wrap;gap:8px 18px;
+    box-shadow:0 10px 30px rgba(0,0,0,.06);position:relative;z-index:2;
+  }
+  nav.toc a{color:var(--morado-deep);text-decoration:none;font-weight:600;font-size:.86rem}
+  nav.toc a:hover{text-decoration:underline}
+
+  main{padding:38px 0 60px}
+  section{margin:0 0 34px;scroll-margin-top:18px}
+  h2{font-size:1.34rem;font-weight:800;letter-spacing:-.01em;margin:0 0 6px;display:flex;align-items:center;gap:10px}
+  h2 .dot{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
+  .lead{color:var(--muted);margin:0 0 16px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin:0 0 14px}
+  .card h3{margin:0 0 8px;font-size:1.02rem}
+  .card p:last-child{margin-bottom:0}
+
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.split{grid-template-columns:1fr}.hero h1{font-size:1.7rem}}
+
+  .tag{display:inline-block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+    padding:3px 9px;border-radius:999px;vertical-align:middle}
+  .tag.a{background:rgba(138,95,192,.14);color:var(--morado-deep)}
+  .tag.b{background:rgba(47,184,200,.16);color:var(--teal-deep)}
+
+  table{width:100%;border-collapse:collapse;font-size:.92rem;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#faf8f3;font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  td strong{color:var(--ink)}
+  .rec td:first-child{position:relative}
+  .rec{background:rgba(240,168,40,.07)}
+
+  ul.clean{list-style:none;padding:0;margin:0}
+  ul.clean li{position:relative;padding:6px 0 6px 28px}
+  ul.clean li::before{content:"";position:absolute;left:4px;top:13px;width:8px;height:8px;border-radius:50%;background:var(--teal)}
+  ul.reasons li::before{background:var(--no)}
+  ul.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+  ul.steps li{counter-increment:s;position:relative;padding:10px 0 10px 44px;border-bottom:1px dashed var(--line)}
+  ul.steps li:last-child{border-bottom:none}
+  ul.steps li::before{content:counter(s);position:absolute;left:0;top:9px;width:28px;height:28px;border-radius:50%;
+    background:var(--morado);color:#fff;font-weight:700;display:grid;place-items:center;font-size:.85rem}
+
+  .callout{border-left:4px solid var(--ambar);background:rgba(240,168,40,.08);padding:14px 18px;border-radius:0 12px 12px 0;margin:14px 0}
+  .callout.bias{border-left-color:var(--morado);background:rgba(138,95,192,.08)}
+  .callout strong{color:var(--ink)}
+
+  .yes{color:var(--ok);font-weight:700}
+  .nope{color:var(--no);font-weight:700}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.84rem}
+
+  footer{border-top:1px solid var(--line);padding:22px 0;color:var(--muted);font-size:.82rem}
+  code{background:#f0ede6;padding:1px 6px;border-radius:6px;font-size:.86em}
+  .muted{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="kicker">Bienvenido a tu plaza · Notas de arquitectura</p>
+    <h1>Correcciones con IA: cómo montarlo y de qué costes despegarme</h1>
+    <p>Resumen de la decisión: por qué no entrenar un modelo en local, qué arquitectura usar, y cómo separar el coste de desarrollo del coste de producto. Vuelve aquí cuando tengas dudas.</p>
+    <p class="meta">Documento de referencia · 14 jun 2026 · agnóstico de proveedor</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="toc">
+    <a href="#dos-cubos">① Dos costes</a>
+    <a href="#no-local">② Por qué no local</a>
+    <a href="#arquitectura">③ Arquitectura</a>
+    <a href="#espectro">④ Espectro de opciones</a>
+    <a href="#costes">⑤ Costes</a>
+    <a href="#saco-a">⑥ Bajar la cuota</a>
+    <a href="#pasos">⑦ Próximos pasos</a>
+  </nav>
+</div>
+
+<main class="wrap">
+
+  <!-- 1 -->
+  <section id="dos-cubos">
+    <h2><span class="dot" style="background:var(--teal)"></span>① La clave: hay dos costes distintos</h2>
+    <p class="lead">La angustia de los ~100 € se disuelve casi entera al separarlos. Solo uno es una "suscripción" de verdad.</p>
+    <div class="split">
+      <div class="card">
+        <h3><span class="tag a">Saco A</span> Coste de desarrollo</h3>
+        <p>Lo que pagas para <strong>construir</strong>: Claude Code / Max, y la infra (Vercel Pro, Mux).</p>
+        <p>Flat y predecible. Aquí sí tiene sentido querer "despegarte" — es gasto de productividad personal e infraestructura.</p>
+      </div>
+      <div class="card">
+        <h3><span class="tag b">Saco B</span> Coste de producto</h3>
+        <p>La IA <strong>dentro</strong> del producto: módulo de correcciones, chatbot.</p>
+        <p>No es una suscripción: es <strong>COGS</strong> (coste por uso). Gastas céntimos por corrección y cobras euros por ella. Es un margen, no una cinta de correr.</p>
+      </div>
+    </div>
+    <div class="callout">
+      <strong>Regla mental:</strong> si el módulo de correcciones lo cobras, su coste de IA no debería preocuparte como "cuota" — debe ser una fracción de lo que ingresas. La preocupación de la cuota aplica al <span class="tag a">Saco A</span>, casi nunca al <span class="tag b">Saco B</span>.
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="no-local">
+    <h2><span class="dot" style="background:var(--no)"></span>② Por qué NO entrenar un LLM en local (para esto)</h2>
+    <p class="lead">El fine-tuning local es la herramienta equivocada y la cara para corregir programaciones contra una rúbrica.</p>
+    <div class="card">
+      <ul class="clean reasons">
+        <li><strong>El fine-tuning enseña forma, no juicio.</strong> La rúbrica es la fuente de verdad y la vas a editar → quiere estar <em>en el contexto</em> (en el prompt), no horneada en los pesos. Cambiar un criterio = editar un texto, no reentrenar.</li>
+        <li><strong>No tienes dataset</strong> — y ese es justo el bloqueo del proyecto. Cuando reúnas el material, vale como <em>ejemplos few-shot / corpus RAG</em>, no como set de entrenamiento.</li>
+        <li><strong>El modelo que cabe en tu hardware es flojo.</strong> Un 7B–14B local está muy por debajo en razonamiento pedagógico en español. Fine-tunear un base flojo con pocos datos hace que <em>alucine notas con confianza</em> — el peor fallo para una herramienta de corrección.</li>
+        <li><strong>El coste va al revés.</strong> "Local = gratis" es ilusión: GPU + luz + decenas de horas de MLOps + obsolescencia. Para volumen bajo y a ráfagas, sale más caro y peor que la API.</li>
+      </ul>
+    </div>
+    <div class="callout bias">
+      <strong>Sobre mi sesgo:</strong> me hace Anthropic, así que descuenta mi preferencia de modelo. Pero esta conclusión no depende de qué modelo uses — la prueba de concepto se deja agnóstica para que lo decidas con tus propios ojos.
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="arquitectura">
+    <h2><span class="dot" style="background:var(--morado)"></span>③ La arquitectura recomendada: "IA supervisada"</h2>
+    <p class="lead">Sin entrenar nada. La IA propone, tú corriges la corrección.</p>
+    <div class="card">
+      <ul class="steps">
+        <li><strong>Modelo por API</strong> — un modelo capaz como caballo de batalla; reserva el más potente para las correcciones más finas.</li>
+        <li><strong>Rúbrica en el prompt</strong> + <strong>2-3 correcciones de ejemplo</strong> (few-shot) tuyas. Esto marca el estándar de exigencia y el formato del feedback — hace el 90% del trabajo que creías que haría el fine-tuning.</li>
+        <li><strong>Salida estructurada</strong> (JSON: criterio → puntuación → justificación) para que tu revisión sea rápida y consistente.</li>
+        <li><strong>Tú revisas y firmas.</strong> El humano valida. Por eso la propuesta base debe ser buena.</li>
+      </ul>
+    </div>
+    <p class="muted">Si algún día el corpus crece mucho, el siguiente paso <strong>no</strong> es fine-tuning sino <strong>RAG</strong> sobre tus correcciones de referencia (recuperar las más parecidas como ejemplos). Sigue sin entrenar pesos.</p>
+  </section>
+
+  <!-- 4 -->
+  <section id="espectro">
+    <h2><span class="dot" style="background:var(--teal)"></span>④ Espectro de opciones (sin comprar hardware)</h2>
+    <p class="lead">"Despegarte de la frontera" es viable hoy sin tocar un destornillador. Los modelos abiertos (Qwen, DeepSeek, Llama 3.3, Gemma) ya dan calidad suficiente para corrección supervisada.</p>
+    <table>
+      <thead><tr><th>Vía</th><th>Qué es</th><th>Cuándo encaja</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Suscripción frontera</strong></td><td>Flat, cero ops, máxima calidad</td><td>Desarrollo (<span class="tag a">Saco A</span>)</td></tr>
+        <tr class="rec"><td><strong>API por uso · proveedor barato</strong> ⭐</td><td>DeepSeek, Qwen, Llama vía OpenRouter / Together / Groq</td><td><strong>Tu producto</strong> — céntimos/corrección, cero ops</td></tr>
+        <tr><td><strong>GPU alquilada</strong></td><td>Runpod / Vast (~0,3 €/h una 4090; ~1-2 €/h una A100) con modelo abierto</td><td>Volumen medio, control sin capex</td></tr>
+        <tr><td><strong>Hardware propio</strong></td><td>Mac 64-128 GB unificada, o 2× GPU 24 GB</td><td>Volumen alto y constante, o privacidad dura</td></tr>
+      </tbody>
+    </table>
+    <p class="muted">⭐ Recomendado para el Saco B: un modelo abierto por API barata cuesta del orden de <strong>10-30× menos</strong> por token de salida que la frontera. Ya te despega del precio premium sin capex.</p>
+  </section>
+
+  <!-- 5 -->
+  <section id="costes">
+    <h2><span class="dot" style="background:var(--ambar)"></span>⑤ Costes estimados por corrección</h2>
+    <p class="lead">Estimación: ~40k tokens de entrada (programación + rúbrica) + ~4k de salida. Con <strong>caché de la rúbrica</strong> (prefijo estable y reutilizado) la entrada repetida cae a ~0,1× y estos números bajan en volumen.</p>
+    <table>
+      <thead><tr><th>Modelo (referencia)</th><th>Coste / corrección</th><th>100 corr./mes</th></tr></thead>
+      <tbody>
+        <tr><td>Económico ($1/$5 por 1M)</td><td>~0,06 €</td><td>~6 €</td></tr>
+        <tr><td>Equilibrado ($3/$15)</td><td>~0,18 €</td><td>~18 €</td></tr>
+        <tr><td>Frontera ($5/$25)</td><td>~0,30 €</td><td>~30 €</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      Corregir un mes entero con el modelo más caro cuesta menos que una tarde tuya peleándote con CUDA. Y degrada limpio: el mes que no corriges, pagas 0.
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="saco-a">
+    <h2><span class="dot" style="background:var(--morado)"></span>⑥ Bajar la cuota real <span class="tag a" style="margin-left:6px">Saco A</span></h2>
+    <p class="lead">Ruta de escape por componente. Algunos baratos compensan; otros tienen ahorro tangible.</p>
+    <div class="split">
+      <div class="card">
+        <h3>Vercel Pro · ~20 €</h3>
+        <p>Obligatorio para cobrar (Hobby prohíbe uso comercial). <strong>Escape:</strong> VPS propio (Hetzner ~5-15 €) + Docker, pero te comes el ops de deploys/SSL. Para un MVP que cobra, los 20 € son baratos.</p>
+      </div>
+      <div class="card">
+        <h3>Mux · ~20 € + uso</h3>
+        <p><strong>Aquí sí hay ahorro real:</strong> <strong>Bunny Stream</strong> (céntimos/GB, mucho más barato) o <strong>Cloudflare Stream</strong>. Mux es el más cómodo, no el único.</p>
+      </div>
+      <div class="card">
+        <h3>Claude Code / Max</h3>
+        <p>Gasto de productividad personal. Es donde "despegarte" tiene más recorrido legítimo — a cambio de horas. Para <em>construir</em>, la frontera suele justificar el ROI.</p>
+      </div>
+      <div class="card">
+        <h3>La idea de fondo</h3>
+        <p>Para construir, paga lo que te ahorra horas. Para tu producto, no necesitas frontera ni suscripción: modelo abierto barato por uso + tu rúbrica + revisión humana.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="pasos">
+    <h2><span class="dot" style="background:var(--teal)"></span>⑦ Próximos pasos</h2>
+    <div class="card">
+      <ul class="steps">
+        <li><strong>Reunir el material de referencia</strong> (programaciones + sus correcciones). Es el bloqueo actual del proyecto y sirve para los ejemplos few-shot.</li>
+        <li><strong>Redactar la rúbrica</strong> con criterios explícitos y graduables (no "se ve bien", sino "incluye objetivos medibles alineados con el currículo").</li>
+        <li><strong>Prueba de concepto del prompt</strong> (rúbrica + formato de salida + 2-3 ejemplos), <strong>agnóstica de proveedor</strong>.</li>
+        <li><strong>Comparar tú mismo:</strong> tirar el mismo prompt contra un modelo abierto barato (Qwen/DeepSeek) y contra uno de frontera. Decidir por calidad vs coste — sin mi sesgo en la ecuación.</li>
+        <li><strong>Decidir el modelo de cobro</strong> del servicio de correcciones para que el coste de IA sea COGS, no cuota.</li>
+      </ul>
+    </div>
+    <div class="callout">
+      <strong>Coste de validar la idea: &lt; 5 €.</strong> Antes de comprometerte con cualquier infraestructura, la prueba de concepto del prompt te dice si la calidad "yo solo reviso" se sostiene.
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    Notas de decisión · proyecto <strong>Correcciones IA</strong> (bienvenidoatuplaza.com). Documento vivo: actualízalo cuando cambien los supuestos. Las cifras de coste son estimaciones de referencia, no precios contractuales.
+  </div>
+</footer>
+
+</body>
+</html>
