@@ -77,8 +77,10 @@ export default auth((req) => {
  *     to storage.googleapis.com), R2 (direct browser PUT uploads for covers and
  *     lesson PDFs), Sentry ingest, Vercel telemetry.
  *   - frame-src allows Stripe's js.stripe.com and Mux's iframe fallback.
- *   - form-action 'self' — every <form> action in the codebase posts to
- *     `/api/...` paths on our origin.
+ *   - form-action: 'self' for our own POST endpoints, plus
+ *     checkout.stripe.com because the "Comprar curso" <form> posts to
+ *     /api/checkout, which 303-redirects to Stripe's hosted page — and
+ *     browsers enforce form-action against the redirect destination too.
  */
 function buildCsp(nonce: string, isDev: boolean): string {
   const scriptSrc = [
@@ -108,7 +110,7 @@ function buildCsp(nonce: string, isDev: boolean): string {
     "worker-src": "'self' blob:",
     "object-src": "'none'",
     "base-uri": "'self'",
-    "form-action": "'self'",
+    "form-action": "'self' https://checkout.stripe.com",
     // 'self' (not 'none') so our own pages can embed our gated content —
     // e.g. the lesson PDF viewer iframe. Cross-origin framing stays blocked.
     "frame-ancestors": "'self'",
