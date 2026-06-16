@@ -86,6 +86,10 @@ export async function POST(req: Request) {
         price_data: {
           currency: course.currency.toLowerCase(),
           unit_amount: course.priceCents,
+          // El precio guardado (priceCents) es el que paga el alumno: IVA
+          // incluido. "inclusive" hace que Stripe Tax desglose el IVA de ese
+          // total en vez de sumarlo encima (que sería "exclusive").
+          tax_behavior: "inclusive",
           product_data: {
             name: course.title,
             description: course.description.slice(0, 500),
