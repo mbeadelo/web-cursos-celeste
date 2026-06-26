@@ -76,14 +76,23 @@ export async function POST(req: Request) {
         break;
     }
   } catch (err) {
-    // If processing fails after the idempotency row was inserted, the
-    // StripeEvent row blocks future retries. We log loudly so operations can
-    // notice and fix manually. Throwing here would 500 → Stripe retries →
-    // hits the idempotency conflict → silent skip. So: never throw.
+    // The handler failed AFTER the idempotency row was written. If we left the
+    // row and returned 200, Stripe would never retry → a transient DB blip
+    // would permanently lose the enrollment (customer paid, no access). So we
+    // roll back the idempotency row and return 500 to let Stripe retry. Every
+    // handler write is an idempotent upsert (keyed by session/payment_intent),
+    // so re-processing the same event is safe. Permanent failures (no course,
+    // no email) early-return without throwing, so they don't reach here and
+    // won't loop.
     console.error(`[stripe webhook] error handling ${event.type}:`, err);
-    // Optional: delete the StripeEvent row to allow manual retry. We don't
-    // do that automatically because most failures are transient (DB blip)
-    // and the next manual replay should work via Stripe Dashboard.
+    await db.stripeEvent.delete({ where: { id: event.id } }).catch(() => {
+      // Even the rollback failed → the row stays and will block retries. Log
+      // so it can be replayed manually from the Stripe Dashboard.
+      console.error(
+        `[stripe webhook] could not roll back StripeEvent ${event.id}`
+      );
+    });
+    return new Response("Webhook handler error", { status: 500 });
   }
 
   return NextResponse.json({ received: true });
@@ -185,6 +194,21 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
 
   if (!paymentIntentId) {
     console.error("[stripe webhook] charge.refunded without payment_intent");
+    return;
+  }
+
+  // Stripe emits `charge.refunded` on PARTIAL refunds too (e.g. a goodwill
+  // 5 € back on a 100 € course). Only revoke access on a FULL refund —
+  // `charge.refunded` is true solely when the whole charge has been returned;
+  // we also compare amounts as a belt-and-suspenders check. A partial refund
+  // must not strip the course the student largely paid for.
+  const fullyRefunded =
+    charge.refunded === true || charge.amount_refunded >= charge.amount;
+  if (!fullyRefunded) {
+    console.warn(
+      `[stripe webhook] partial refund on ${paymentIntentId} ` +
+        `(${charge.amount_refunded}/${charge.amount}) — access kept`
+    );
     return;
   }
 

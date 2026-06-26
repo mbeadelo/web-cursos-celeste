@@ -73,6 +73,16 @@ export const checkoutIpLimiter = makeLimiter("checkout:ip", 10, "1 m");
 export const chatIpLimiter = makeLimiter("chat:ip", 15, "1 m");
 export const chatIpHourLimiter = makeLimiter("chat:ip:h", 120, "1 h");
 
+// Chatbot GLOBAL daily ceiling: a soft cap across ALL callers, keyed on a
+// constant (not the IP). The per-IP limiters above are spoofable via
+// x-forwarded-for, so a distributed or header-rotating attack could slip past
+// them; this bounds the TOTAL number of model calls per day regardless of who
+// makes them. When tripped, the route degrades to a friendly "resting" reply
+// instead of spending tokens. It sits *below* the hard spend cap in the
+// Anthropic workspace — a runaway-abuse backstop, not the expected volume.
+// Tune the number to your monthly budget (legit traffic is far lower).
+export const chatGlobalDayLimiter = makeLimiter("chat:global:d", 1000, "1 d");
+
 /**
  * Best-effort client IP from common proxy headers. Never trust this for
  * security decisions other than rate limiting (it's spoofable on a misconfig).

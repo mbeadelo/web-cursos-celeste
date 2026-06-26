@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { sanitizeRichHtml } from "@/lib/html";
 import { LEGAL_SLUGS, type LegalSlug } from "@/lib/legal";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -28,7 +29,11 @@ export async function saveLegalDocument(input: {
     return { ok: false, error: "Slug no válido." };
   }
   const title = input.title.trim();
-  const body = input.body.trim();
+  // Sanitize on save — same as the other rich-HTML write paths (articles,
+  // SiteContent rich, TEXT lessons). The TipTap whitelist is client-only and
+  // this server action can be called directly, so we must not trust the input.
+  // The rendered output (/legal/[slug]) uses dangerouslySetInnerHTML.
+  const body = sanitizeRichHtml(input.body.trim());
   if (title.length < 3) {
     return { ok: false, error: "El título es demasiado corto." };
   }

@@ -8,7 +8,12 @@ import {
   CHATBOT_MAX_TOKENS,
   CHATBOT_MAX_HISTORY,
 } from "@/lib/chatbot";
-import { chatIpLimiter, chatIpHourLimiter, getClientIp } from "@/lib/rate-limit";
+import {
+  chatIpLimiter,
+  chatIpHourLimiter,
+  chatGlobalDayLimiter,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -50,6 +55,17 @@ export async function POST(req: Request) {
     });
   }
 
+  // Global daily ceiling across all IPs — defends against distributed/spoofed
+  // abuse that slips past the per-IP limit. Degrade gracefully (friendly reply,
+  // no tokens spent) instead of erroring or draining the budget.
+  const globalDay = await chatGlobalDayLimiter.limit("chat:global");
+  if (!globalDay.success) {
+    return plainStream(
+      "🌙 Ahora mismo estoy descansando un ratito para no saturarme. " +
+        "Vuelve a intentarlo más tarde y con gusto te ayudo. ¡Gracias por tu paciencia!"
+    );
+  }
+
   let body: z.infer<typeof BodySchema>;
   try {
     body = BodySchema.parse(await req.json());
@@ -82,21 +98,40 @@ export async function POST(req: Request) {
   const system = await buildChatbotSystemPrompt();
 
   const encoder = new TextEncoder();
+  // Hoisted so cancel() can abort the upstream generation if the client hangs
+  // up: without this we'd keep paying Anthropic for tokens nobody reads.
+  let llm: ReturnType<ReturnType<typeof anthropic>["messages"]["stream"]> | null =
+    null;
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        const llm = anthropic().messages.stream({
-          model: CHATBOT_MODEL,
-          max_tokens: CHATBOT_MAX_TOKENS,
-          system,
-          messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        });
-        llm.on("text", (delta) => {
+        llm = anthropic().messages.stream(
+          {
+            model: CHATBOT_MODEL,
+            max_tokens: CHATBOT_MAX_TOKENS,
+            system,
+            messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          },
+          // Propagate the request abort signal: when the browser disconnects,
+          // the SDK aborts the HTTP call to Anthropic and stops the billing.
+          { signal: req.signal }
+        );
+        llm.on("text", (delta: string) => {
           controller.enqueue(encoder.encode(delta));
         });
         await llm.finalMessage();
         controller.close();
       } catch (err) {
+        // Client aborted (navigated away / closed widget): stop quietly, no
+        // error message and nothing more to bill.
+        if (req.signal.aborted) {
+          try {
+            controller.close();
+          } catch {
+            // already closed
+          }
+          return;
+        }
         console.error("[chat] error de streaming:", err);
         try {
           controller.enqueue(
@@ -109,6 +144,10 @@ export async function POST(req: Request) {
         }
         controller.close();
       }
+    },
+    cancel() {
+      // Consumer side cancelled the stream → abort the generation upstream.
+      llm?.abort();
     },
   });
 
