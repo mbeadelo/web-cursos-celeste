@@ -8,7 +8,12 @@ import {
   CHATBOT_MAX_TOKENS,
   CHATBOT_MAX_HISTORY,
 } from "@/lib/chatbot";
-import { chatIpLimiter, chatIpHourLimiter, getClientIp } from "@/lib/rate-limit";
+import {
+  chatIpLimiter,
+  chatIpHourLimiter,
+  chatGlobalDayLimiter,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -48,6 +53,17 @@ export async function POST(req: Request) {
     return new Response("Demasiados mensajes. Prueba en un momento.", {
       status: 429,
     });
+  }
+
+  // Global daily ceiling across all IPs — defends against distributed/spoofed
+  // abuse that slips past the per-IP limit. Degrade gracefully (friendly reply,
+  // no tokens spent) instead of erroring or draining the budget.
+  const globalDay = await chatGlobalDayLimiter.limit("chat:global");
+  if (!globalDay.success) {
+    return plainStream(
+      "🌙 Ahora mismo estoy descansando un ratito para no saturarme. " +
+        "Vuelve a intentarlo más tarde y con gusto te ayudo. ¡Gracias por tu paciencia!"
+    );
   }
 
   let body: z.infer<typeof BodySchema>;
