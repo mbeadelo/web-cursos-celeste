@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ChatbotWidget } from "@/components/chatbot-widget";
 import { getChatbotPublicConfig } from "@/lib/chatbot";
@@ -54,6 +55,10 @@ export default async function RootLayout({
             avatar={chatbot.avatar}
           />
         )}
+        {/* Vercel Web Analytics — cookieless, first-party. Capta UTMs y
+            referrers para trackear campañas. Requiere activar "Web Analytics"
+            en el dashboard de Vercel para que fluya el dato. */}
+        <Analytics />
       </body>
     </html>
   );
