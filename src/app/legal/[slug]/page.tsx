@@ -74,8 +74,9 @@ export default async function LegalPage({
 
           <article
             className="prose prose-neutral max-w-none prose-a:text-brand-celeste-deep hover:prose-a:text-brand-magenta"
-            // Safe: HTML is admin-authored via TipTap (whitelisted nodes/marks)
-            // or a hardcoded default template in lib/legal.ts. No user input.
+            // Safe: stored HTML is sanitized server-side on save
+            // (sanitizeRichHtml in admin/legal/_actions.ts); defaults are
+            // hardcoded templates in lib/legal.ts. No unsanitized user input.
             dangerouslySetInnerHTML={{ __html: doc.body }}
           />
 
