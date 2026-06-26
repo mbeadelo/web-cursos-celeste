@@ -1,4 +1,5 @@
 import { z } from "zod";
+import * as Sentry from "@sentry/nextjs";
 import {
   isChatbotConfigured,
   getChatbotPublicConfig,
@@ -49,6 +50,15 @@ export async function POST(req: Request) {
     chatIpLimiter.limit(ip),
     chatIpHourLimiter.limit(ip),
   ]);
+  if (!perHour.success) {
+    // The per-minute limit trips on legit fast typing; the per-HOUR limit
+    // (120/h from one IP) signals sustained abuse. Surface it to Sentry (no-op
+    // until SENTRY_DSN is set) so an attack is visible without digging logs.
+    Sentry.captureMessage(
+      `[chatbot] IP superó el límite horario (120/h) — posible abuso sostenido`,
+      { level: "warning", tags: { area: "chatbot", abuse: "ip-hourly" }, extra: { ip } }
+    );
+  }
   if (!perMin.success || !perHour.success) {
     return new Response("Demasiados mensajes. Prueba en un momento.", {
       status: 429,
@@ -60,6 +70,12 @@ export async function POST(req: Request) {
   // no tokens spent) instead of erroring or draining the budget.
   const globalDay = await chatGlobalDayLimiter.limit("chat:global");
   if (!globalDay.success) {
+    // Total daily ceiling hit — either viral traffic or distributed abuse.
+    // Worth a louder signal: the token budget is at its cap for the day.
+    Sentry.captureMessage(
+      `[chatbot] tope global diario alcanzado — presupuesto al límite (posible abuso distribuido)`,
+      { level: "error", tags: { area: "chatbot", abuse: "global-daily" } }
+    );
     return plainStream(
       "🌙 Ahora mismo estoy descansando un ratito para no saturarme. " +
         "Vuelve a intentarlo más tarde y con gusto te ayudo. ¡Gracias por tu paciencia!"
