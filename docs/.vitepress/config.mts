@@ -17,6 +17,7 @@ export default defineConfig({
       { text: "Herramientas", link: "/herramientas/" },
       { text: "Decisiones", link: "/decisiones" },
       { text: "Operativa", link: "/operativa" },
+      { text: "Lanzamiento", link: "/operaciones/" },
       {
         text: "Fases",
         items: [
@@ -45,6 +46,17 @@ export default defineConfig({
         { text: "Arquitectura", link: "/arquitectura" },
         { text: "Operativa", link: "/operativa" },
         { text: "Decisiones", link: "/decisiones" },
+      ],
+      "/operaciones/": [
+        {
+          text: "Lanzamiento (jun 2026)",
+          items: [
+            { text: "Visión general / bitácora", link: "/operaciones/" },
+            { text: "Migración del dominio", link: "/operaciones/migracion-dominio" },
+            { text: "Auditoría de seguridad #2", link: "/operaciones/auditoria-seguridad-2" },
+            { text: "Sentry", link: "/herramientas/sentry" },
+          ],
+        },
       ],
       "/herramientas/": [
         {

@@ -30,10 +30,10 @@ features:
 ## Estado actual
 
 - **Marca**: Bienvenido a tu plaza
-- **Dominio**: `bienvenidoatuplaza.com` (aún sin apuntar a Vercel)
+- **Dominio**: ✅ `bienvenidoatuplaza.com` apuntando a Vercel (`www` canónico, HTTPS). Ver [Migración del dominio](/operaciones/migracion-dominio).
 - **Repo**: `web-cursos-celeste` en GitHub
-- **Despliegue**: producción en `web-cursos-celeste.vercel.app`
-- **Fase actual**: Fase 2 completada. Admin CRUD completo de cursos y lecciones, drag-and-drop, subida directa de portadas a R2 (pendiente de configurar la cuenta Cloudflare). Próximo: Fase 3 — Stripe Checkout.
+- **Despliegue**: producción en `www.bienvenidoatuplaza.com` (deploy automático desde `main`)
+- **Estado**: producto completo y en **modo Stripe LIVE**. Migración de dominio hecha, [2ª auditoría de seguridad](/operaciones/auditoria-seguridad-2) pasada, y monitorización de errores con [Sentry](/herramientas/sentry) activa. Bloque de lanzamiento documentado en [Operaciones](/operaciones/).
 
 ## Mapa rápido
 
