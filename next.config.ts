@@ -49,6 +49,16 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Rutas "vanity" de campaña: sirven la home pero la URL del navegador se
+  // queda como /ig o /wa, así Vercel Analytics las registra como páginas
+  // separadas y podemos medir cuánta gente trae cada canal SIN pagar el
+  // add-on de UTMs. Un rewrite (no redirect) es lo que mantiene la URL.
+  async rewrites() {
+    return [
+      { source: "/ig", destination: "/" }, // Instagram
+      { source: "/wa", destination: "/" }, // WhatsApp
+    ];
+  },
 };
 
 // Wrap with Sentry: this is what bundles the client SDK (instrumentation-client.ts)
