@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 /**
  * Static security headers — applied to every response.
@@ -50,4 +51,13 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Wrap with Sentry: this is what bundles the client SDK (instrumentation-client.ts)
+// into the browser build and wires up server instrumentation. WITHOUT this
+// wrapper Sentry never loads in the browser, no matter the env vars.
+// Source-map upload is skipped unless SENTRY_AUTH_TOKEN is set (just a warning).
+export default withSentryConfig(nextConfig, {
+  org: "bienvenido-a-tu-plaza",
+  project: "javascript-nextjs",
+  // Only log source-map upload noise in CI.
+  silent: !process.env.CI,
+});
