@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   title: "Blog",
   description:
     "Artículos sobre los temas que tratamos en los cursos. Aprende sin comprar nada, completamente gratis.",
+  openGraph: {
+    title: "Blog · Bienvenido a tu plaza",
+    description:
+      "Artículos sobre los temas que tratamos en los cursos. Aprende sin comprar nada, completamente gratis.",
+    url: "/articulos",
+  },
 };
 
 const dateFormatter = new Intl.DateTimeFormat("es-ES", {

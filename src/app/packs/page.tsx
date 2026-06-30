@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   title: "Packs",
   description:
     "Packs de materiales descargables (PDFs) en Bienvenido a tu plaza.",
+  openGraph: {
+    title: "Packs · Bienvenido a tu plaza",
+    description:
+      "Packs de materiales descargables (PDFs) en Bienvenido a tu plaza.",
+    url: "/packs",
+  },
 };
 
 const formatter = new Intl.NumberFormat("es-ES", {

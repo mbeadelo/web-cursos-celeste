@@ -9,6 +9,11 @@ import { CourseBadge } from "@/components/course-badge";
 export const metadata: Metadata = {
   title: "Cursos",
   description: "Catálogo de cursos online en Bienvenido a tu plaza.",
+  openGraph: {
+    title: "Cursos · Bienvenido a tu plaza",
+    description: "Catálogo de cursos online en Bienvenido a tu plaza.",
+    url: "/cursos",
+  },
 };
 
 const formatter = new Intl.NumberFormat("es-ES", {

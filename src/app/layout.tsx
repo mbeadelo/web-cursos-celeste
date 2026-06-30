@@ -17,13 +17,34 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const SITE_NAME = "Bienvenido a tu plaza";
+const SITE_DESCRIPTION =
+  "Cursos online para preparar tu oposición docente a tu ritmo: vídeos, materiales descargables y acompañamiento.";
+
 export const metadata: Metadata = {
   title: {
-    default: "Bienvenido a tu plaza",
+    default: SITE_NAME,
     template: "%s · Bienvenido a tu plaza",
   },
-  description: "Cursos online sobre lo tuyo. Aprende a tu ritmo.",
+  description: SITE_DESCRIPTION,
   metadataBase: new URL("https://bienvenidoatuplaza.com"),
+  applicationName: SITE_NAME,
+  // OG/Twitter por defecto para toda la web. Las páginas hijas (listados,
+  // detalle de curso/artículo) sobrescriben title/description/images cuando
+  // procede; la imagen la aporta el opengraph-image.tsx de cada segmento.
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "es_ES",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default async function RootLayout({
