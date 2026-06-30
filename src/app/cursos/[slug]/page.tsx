@@ -71,12 +71,6 @@ export async function generateMetadata({
       // de este segmento genera la tarjeta de marca como fallback.
       images: course.coverUrl ? [{ url: course.coverUrl }] : undefined,
     },
-    twitter: {
-      card: "summary_large_image",
-      title: course.title,
-      description,
-      images: course.coverUrl ? [course.coverUrl] : undefined,
-    },
   };
 }
 

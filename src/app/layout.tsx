@@ -29,9 +29,10 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   metadataBase: new URL("https://bienvenidoatuplaza.com"),
   applicationName: SITE_NAME,
-  // OG/Twitter por defecto para toda la web. Las páginas hijas (listados,
-  // detalle de curso/artículo) sobrescriben title/description/images cuando
-  // procede; la imagen la aporta el opengraph-image.tsx de cada segmento.
+  // Open Graph por defecto para toda la web. Lo leen WhatsApp, Telegram, los
+  // previews de email, LinkedIn, etc. Las páginas hijas (listados, detalle de
+  // curso/artículo) sobrescriben title/description/images cuando procede; la
+  // imagen la aporta el opengraph-image.tsx de cada segmento.
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
@@ -39,11 +40,6 @@ export const metadata: Metadata = {
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
     url: "/",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: SITE_NAME,
-    description: SITE_DESCRIPTION,
   },
 };
 

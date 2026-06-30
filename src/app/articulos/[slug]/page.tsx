@@ -41,12 +41,6 @@ export async function generateMetadata({
       modifiedTime: article.updatedAt.toISOString(),
       images: article.coverUrl ? [{ url: article.coverUrl }] : undefined,
     },
-    twitter: {
-      card: article.coverUrl ? "summary_large_image" : "summary",
-      title: article.title,
-      description: article.excerpt,
-      images: article.coverUrl ? [article.coverUrl] : undefined,
-    },
   };
 }
 
