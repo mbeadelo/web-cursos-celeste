@@ -12,6 +12,19 @@ const dateFormatter = new Intl.DateTimeFormat("es-ES", {
   dateStyle: "long",
 });
 
+// Un artículo es público solo si está publicado y su fecha de publicación ya
+// pasó (los programados con fecha futura permanecen ocultos → 404).
+function isLive(article: {
+  published: boolean;
+  publishedAt: Date | null;
+}): boolean {
+  return (
+    article.published &&
+    article.publishedAt !== null &&
+    article.publishedAt <= new Date()
+  );
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -29,7 +42,8 @@ export async function generateMetadata({
       updatedAt: true,
     },
   });
-  if (!article || !article.published) return { title: "Artículo no encontrado" };
+  if (!article || !isLive(article))
+    return { title: "Artículo no encontrado" };
   return {
     title: article.title,
     description: article.excerpt,
@@ -54,7 +68,7 @@ export default async function ArticlePage({
     where: { slug },
     include: { author: { select: { name: true, email: true } } },
   });
-  if (!article || !article.published) notFound();
+  if (!article || !isLive(article)) notFound();
 
   const authorName = article.author?.name ?? "Bienvenido a tu plaza";
 

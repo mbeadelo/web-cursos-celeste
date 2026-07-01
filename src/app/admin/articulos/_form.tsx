@@ -19,9 +19,20 @@ const FormSchema = z.object({
   body: z.string().trim().min(1, "El cuerpo no puede estar vacío"),
   coverUrl: z.string().trim().url("URL no válida").optional().or(z.literal("")),
   published: z.boolean(),
+  publishedAt: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
+
+// ISO (UTC, de DB) → valor para <input type="datetime-local"> en hora local
+// del navegador ("YYYY-MM-DDTHH:mm").
+function toLocalInput(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
 
 type ActionResult =
   | { ok: true }
@@ -35,6 +46,7 @@ type Props = {
     body: string;
     coverUrl: string | null;
     published: boolean;
+    publishedAt: string | null;
   };
   action: (input: {
     title: string;
@@ -43,6 +55,7 @@ type Props = {
     body: string;
     coverUrl?: string;
     published: boolean;
+    publishedAt?: string;
   }) => Promise<ActionResult | void>;
   submitLabel: string;
   storageEnabled: boolean;
@@ -67,6 +80,7 @@ export function ArticleForm({ initial, action, submitLabel, storageEnabled }: Pr
       body: initial?.body ?? "",
       coverUrl: initial?.coverUrl ?? "",
       published: initial?.published ?? false,
+      publishedAt: toLocalInput(initial?.publishedAt),
     },
   });
 
@@ -84,6 +98,11 @@ export function ArticleForm({ initial, action, submitLabel, storageEnabled }: Pr
       body: values.body,
       coverUrl: values.coverUrl || undefined,
       published: values.published,
+      // datetime-local (hora local) → ISO UTC para la DB.
+      publishedAt:
+        values.published && values.publishedAt
+          ? new Date(values.publishedAt).toISOString()
+          : undefined,
     });
     if (result && result.ok === false) {
       setServerError(result.error);
@@ -155,6 +174,16 @@ export function ArticleForm({ initial, action, submitLabel, storageEnabled }: Pr
           onCheckedChange={(v) => setValue("published", v, { shouldDirty: true })}
         />
       </div>
+
+      {published && (
+        <Field
+          label="Fecha de publicación"
+          hint="Vacío = se publica al guardar. Pon una fecha y hora futuras para programarlo: aparecerá en el blog solo cuando ese momento llegue."
+          error={errors.publishedAt?.message}
+        >
+          <Input type="datetime-local" {...register("publishedAt")} />
+        </Field>
+      )}
 
       {serverError && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">
