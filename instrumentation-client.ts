@@ -11,16 +11,45 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+// Ruido de TERCEROS, no bugs nuestros. Errores lanzados por scripts que NO son
+// de nuestra web: navegadores in-app (Instagram, WhatsApp, Bing…), extensiones
+// del navegador y avisos benignos del propio navegador. Filtrarlos evita
+// ensuciar Sentry y gastar cuota/replays. Lista conservadora: NO incluimos
+// "Failed to fetch"/errores de red ni "Script error." genéricos, que pueden
+// esconder problemas reales. Ampliar si aparecen nuevas variantes.
+const THIRD_PARTY_NOISE = [
+  // WebView de iOS: in-app browsers de Instagram/WhatsApp inyectan esto.
+  "webkit.messageHandlers",
+  // In-app browser de la app de Bing (Android).
+  "instantSearchSDKJSBridgeClearHighlight",
+  // Aviso benigno de layout, no rompe nada; muy común.
+  "ResizeObserver loop limit exceeded",
+  "ResizeObserver loop completed with undelivered notifications",
+  // Firmas clásicas de extensiones del navegador.
+  "top.GLOBALS",
+  "originalCreateNotification",
+  "canvas.contentDocument",
+  "MyApp_RemoveAllHighlights",
+  "atomicFindClose",
+  "conduitPage",
+];
+
+// Scripts servidos desde extensiones del navegador: nada nuestro vive ahí.
+const EXTENSION_URLS = [
+  /extensions\//i,
+  /^chrome:\/\//i,
+  /^chrome-extension:\/\//i,
+  /^moz-extension:\/\//i,
+  /^safari-extension:\/\//i,
+  /^safari-web-extension:\/\//i,
+];
+
 if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     tracesSampleRate: 0.1,
-    // Ruido de terceros, no bugs nuestros: los navegadores in-app de iOS
-    // (Instagram, WhatsApp…) inyectan scripts que acceden a
-    // `window.webkit.messageHandlers`, que no existe fuera de una WebView de
-    // iOS. Falla el script inyectado, no el nuestro; lo filtramos para no
-    // ensuciar Sentry ni gastar replays/cuota. Ampliar si aparecen variantes.
-    ignoreErrors: ["webkit.messageHandlers"],
+    ignoreErrors: THIRD_PARTY_NOISE,
+    denyUrls: EXTENSION_URLS,
     // Replay only on errors (cheap) — full session replay is opt-in later.
     replaysOnErrorSampleRate: 1.0,
     replaysSessionSampleRate: 0,
