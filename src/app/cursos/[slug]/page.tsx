@@ -55,12 +55,22 @@ export async function generateMetadata({
   const { slug } = await params;
   const course = await db.course.findUnique({
     where: { slug },
-    select: { title: true, description: true, published: true },
+    select: { title: true, description: true, coverUrl: true, published: true },
   });
   if (!course || !course.published) return { title: "Curso no encontrado" };
+  const description = course.description.slice(0, 160);
   return {
     title: course.title,
-    description: course.description.slice(0, 160),
+    description,
+    openGraph: {
+      title: course.title,
+      description,
+      type: "website",
+      url: `/cursos/${slug}`,
+      // Si el curso tiene portada propia, manda; si no, el opengraph-image.tsx
+      // de este segmento genera la tarjeta de marca como fallback.
+      images: course.coverUrl ? [{ url: course.coverUrl }] : undefined,
+    },
   };
 }
 
