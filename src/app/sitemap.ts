@@ -4,6 +4,11 @@ import { LEGAL_SLUGS } from "@/lib/legal";
 
 const BASE = "https://bienvenidoatuplaza.com";
 
+// El sitemap es estático por defecto; lo revalidamos cada hora para que los
+// artículos programados aparezcan cuando su fecha de publicación llega, sin
+// necesidad de un nuevo deploy.
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [courses, articles] = await Promise.all([
     db.course.findMany({
@@ -11,8 +16,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, updatedAt: true },
     }),
     db.article.findMany({
-      where: { published: true },
-      select: { slug: true, updatedAt: true, publishedAt: true },
+      // Igual que el blog público: solo los ya publicados (fecha pasada).
+      where: { published: true, publishedAt: { lte: new Date() } },
+      select: { slug: true, updatedAt: true },
     }),
   ]);
 

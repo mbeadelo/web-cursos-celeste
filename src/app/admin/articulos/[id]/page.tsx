@@ -43,7 +43,9 @@ export default async function EditArticlePage({
             >
               Vista previa ↗
             </Link>
-            {article.published && (
+            {article.published &&
+              article.publishedAt &&
+              article.publishedAt <= new Date() && (
               <Link
                 href={`/articulos/${article.slug}`}
                 target="_blank"
@@ -64,6 +66,7 @@ export default async function EditArticlePage({
             body: article.body,
             coverUrl: article.coverUrl,
             published: article.published,
+            publishedAt: article.publishedAt?.toISOString() ?? null,
           }}
           action={action}
           submitLabel="Guardar cambios"

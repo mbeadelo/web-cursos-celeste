@@ -41,7 +41,8 @@ export async function createArticle(raw: ArticleInput): Promise<ActionResult> {
       data: {
         ...data,
         authorId: userId,
-        publishedAt: data.published ? new Date() : null,
+        // Programado si se dio una fecha (puede ser futura); si no, ahora.
+        publishedAt: data.published ? data.publishedAt ?? new Date() : null,
       },
       select: { id: true },
     });
@@ -72,15 +73,16 @@ export async function updateArticle(
     };
   }
 
-  // Preserve publishedAt: set on first publish, keep on subsequent saves,
-  // null out on unpublish.
+  // publishedAt: si se indica una fecha (incluida futura → programado) manda
+  // esa; si no, se conserva la existente o se pone ahora en la primera
+  // publicación; null al despublicar.
   const current = await db.article.findUnique({
     where: { id },
     select: { publishedAt: true },
   });
 
   const publishedAt = parsed.data.published
-    ? current?.publishedAt ?? new Date()
+    ? parsed.data.publishedAt ?? current?.publishedAt ?? new Date()
     : null;
 
   // Sanitize the TipTap HTML body before it ever touches the DB.

@@ -22,6 +22,13 @@ export const ArticleInputSchema = z
       .optional()
       .or(z.literal("")),
     published: z.boolean().default(false),
+    // Fecha/hora de publicación. Vacío o ausente → la action decide (ahora, o
+    // conserva la existente al editar). Fecha futura → el artículo queda
+    // "programado" y solo se hace público cuando esa fecha ya ha pasado.
+    publishedAt: z.preprocess(
+      (v) => (v === "" || v == null ? undefined : v),
+      z.coerce.date().optional()
+    ),
   })
   .transform((data) => ({
     ...data,

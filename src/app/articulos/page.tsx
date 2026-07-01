@@ -24,7 +24,9 @@ const dateFormatter = new Intl.DateTimeFormat("es-ES", {
 
 export default async function ArticlesIndex() {
   const articles = await db.article.findMany({
-    where: { published: true },
+    // Solo artículos ya publicados: published + fecha de publicación pasada.
+    // Los programados (fecha futura) quedan ocultos hasta que llegue su momento.
+    where: { published: true, publishedAt: { lte: new Date() } },
     orderBy: { publishedAt: "desc" },
     select: {
       id: true,

@@ -15,8 +15,13 @@ import { PublishArticleSwitch, DeleteArticleButton } from "./_row-actions";
 export const metadata: Metadata = { title: "Artículos" };
 
 const dateFormatter = new Intl.DateTimeFormat("es-ES", { dateStyle: "medium" });
+const dateTimeFormatter = new Intl.DateTimeFormat("es-ES", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 export default async function AdminArticlesPage() {
+  const now = new Date();
   const articles = await db.article.findMany({
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
     select: {
@@ -69,13 +74,22 @@ export default async function AdminArticlesPage() {
                       {a.slug}
                     </TableCell>
                     <TableCell>
-                      <PublishArticleSwitch
-                        id={a.id}
-                        initialPublished={a.published}
-                      />
+                      <div className="flex flex-col gap-1">
+                        <PublishArticleSwitch
+                          id={a.id}
+                          initialPublished={a.published}
+                        />
+                        {a.published && a.publishedAt && a.publishedAt > now && (
+                          <span className="text-[11px] font-medium text-amber-600">
+                            Programado
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-neutral-600">
-                      {dateFormatter.format(a.publishedAt ?? a.createdAt)}
+                      {a.published && a.publishedAt && a.publishedAt > now
+                        ? dateTimeFormatter.format(a.publishedAt)
+                        : dateFormatter.format(a.publishedAt ?? a.createdAt)}
                     </TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button
