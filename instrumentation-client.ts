@@ -15,6 +15,12 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
     tracesSampleRate: 0.1,
+    // Ruido de terceros, no bugs nuestros: los navegadores in-app de iOS
+    // (Instagram, WhatsApp…) inyectan scripts que acceden a
+    // `window.webkit.messageHandlers`, que no existe fuera de una WebView de
+    // iOS. Falla el script inyectado, no el nuestro; lo filtramos para no
+    // ensuciar Sentry ni gastar replays/cuota. Ampliar si aparecen variantes.
+    ignoreErrors: ["webkit.messageHandlers"],
     // Replay only on errors (cheap) — full session replay is opt-in later.
     replaysOnErrorSampleRate: 1.0,
     replaysSessionSampleRate: 0,
