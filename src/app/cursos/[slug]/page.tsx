@@ -10,6 +10,8 @@ import { CourseBadge } from "@/components/course-badge";
 import { RatingStars } from "@/components/rating-stars";
 import { buildCourseJsonLd, jsonLdString } from "@/lib/json-ld";
 import { isStripeConfigured } from "@/lib/stripe";
+import { signPlaybackTokens } from "@/lib/mux";
+import { CoursePreviewPlayer } from "@/components/course-preview-player";
 
 const formatter = new Intl.NumberFormat("es-ES", {
   style: "currency",
@@ -86,7 +88,14 @@ export default async function CourseDetailPage({
     include: {
       lessons: {
         orderBy: { order: "asc" },
-        select: { id: true, order: true, title: true, type: true },
+        select: {
+          id: true,
+          order: true,
+          title: true,
+          type: true,
+          muxPlaybackId: true,
+          previewSeconds: true,
+        },
       },
     },
   });
@@ -103,6 +112,22 @@ export default async function CourseDetailPage({
         })
       )
     : false;
+
+  // Teaser: primera lección VIDEO marcada como vista previa y con vídeo listo.
+  // Si Mux signing está activo firmamos un token (6h); si el asset es público
+  // reproduce sin token. Sin lección marcada, no hay reproductor y la landing
+  // se comporta como antes.
+  const previewLesson =
+    course.lessons.find(
+      (l) =>
+        l.type === "VIDEO" &&
+        l.previewSeconds != null &&
+        l.previewSeconds > 0 &&
+        l.muxPlaybackId
+    ) ?? null;
+  const previewTokens = previewLesson?.muxPlaybackId
+    ? ((await signPlaybackTokens(previewLesson.muxPlaybackId)) ?? undefined)
+    : undefined;
 
   const stripeReady = isStripeConfigured();
   const audience = bullets(course.targetAudience);
@@ -171,7 +196,18 @@ export default async function CourseDetailPage({
           <header className="grid grid-cols-1 md:grid-cols-[1fr_320px] gap-10 items-start">
             <div className="space-y-5">
               <div className="relative">
-                {course.coverUrl ? (
+                {previewLesson?.muxPlaybackId ? (
+                  <CoursePreviewPlayer
+                    playbackId={previewLesson.muxPlaybackId}
+                    previewSeconds={previewLesson.previewSeconds!}
+                    tokens={previewTokens}
+                    title={previewLesson.title}
+                    courseId={course.id}
+                    courseSlug={course.slug}
+                    enrolled={enrolled}
+                    stripeReady={stripeReady}
+                  />
+                ) : course.coverUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={course.coverUrl}
@@ -181,7 +217,7 @@ export default async function CourseDetailPage({
                 ) : (
                   <div className="w-full aspect-[16/9] rounded-2xl border border-neutral-200 bg-gradient-to-br from-brand-celeste/20 to-brand-magenta/20" />
                 )}
-                <CourseBadge badge={course.badge} floating />
+                {!previewLesson && <CourseBadge badge={course.badge} floating />}
               </div>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
                 {course.title}
@@ -371,6 +407,11 @@ export default async function CourseDetailPage({
                         {lessonTypeIcon(l.type)}
                       </span>
                       <span className="font-medium truncate">{l.title}</span>
+                      {l.id === previewLesson?.id && (
+                        <span className="shrink-0 rounded-full bg-brand-celeste/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-brand-celeste-deep">
+                          ▶ Vista previa gratis
+                        </span>
+                      )}
                     </div>
                     <span className="text-xs uppercase tracking-wide text-neutral-500 shrink-0">
                       {lessonTypeLabel[l.type]}

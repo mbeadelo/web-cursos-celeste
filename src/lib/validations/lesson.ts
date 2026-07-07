@@ -14,6 +14,10 @@ export const VideoLessonSchema = baseSchema.extend({
   // matching the lesson by muxUploadId. No need to paste an id by hand.
   muxUploadId: z.string().trim().max(200).optional(),
   muxPlaybackId: z.string().trim().max(200).optional(),
+  // Teaser: si > 0, esta lección se ofrece como vista previa pública en la
+  // landing, cortada a estos segundos. Tope de 10 min para que un "preview"
+  // no acabe siendo el curso entero. undefined/0 = no es preview.
+  previewSeconds: z.coerce.number().int().min(5).max(600).optional(),
 });
 
 export const PdfLessonSchema = baseSchema.extend({

@@ -39,6 +39,7 @@ type ExistingLesson = {
   moduleId: string | null;
   muxUploadId: string | null;
   muxPlaybackId: string | null;
+  previewSeconds: number | null;
   fileKey: string | null;
   body: string | null;
 };
@@ -64,6 +65,7 @@ const FormSchema = z.object({
   moduleId: z.string().optional(),
   muxUploadId: z.string().optional(),
   muxPlaybackId: z.string().trim().max(200).optional().or(z.literal("")),
+  previewSeconds: z.string().trim().max(4).optional().or(z.literal("")),
   fileKey: z.string().trim().max(500).optional().or(z.literal("")),
   body: z.string().trim().max(20000).optional().or(z.literal("")),
 });
@@ -99,6 +101,7 @@ export function LessonDialog({
       moduleId: lesson?.moduleId ?? "",
       muxUploadId: lesson?.muxUploadId ?? "",
       muxPlaybackId: lesson?.muxPlaybackId ?? "",
+      previewSeconds: lesson?.previewSeconds ? String(lesson.previewSeconds) : "",
       fileKey: lesson?.fileKey ?? "",
       body: lesson?.body ?? "",
     },
@@ -142,6 +145,9 @@ export function LessonDialog({
         moduleId,
         muxUploadId: values.muxUploadId || undefined,
         muxPlaybackId: values.muxPlaybackId || undefined,
+        previewSeconds: values.previewSeconds
+          ? Number(values.previewSeconds)
+          : undefined,
       };
     } else if (values.type === "PDF") {
       payload = {
@@ -270,6 +276,32 @@ export function LessonDialog({
                   Se rellena solo cuando Mux termina de procesar el vídeo.
                 </p>
               </details>
+
+              <div className="pt-2 space-y-1.5">
+                <Label htmlFor="lesson-preview">
+                  Vista previa gratis (segundos)
+                </Label>
+                <Input
+                  id="lesson-preview"
+                  type="number"
+                  min={5}
+                  max={600}
+                  {...register("previewSeconds")}
+                  placeholder="Ej. 90 · vacío = no es preview"
+                />
+                {errors.previewSeconds && (
+                  <p className="text-xs text-red-600">
+                    {errors.previewSeconds.message}
+                  </p>
+                )}
+                <p className="text-xs text-neutral-500">
+                  Si lo rellenas, esta lección se ofrece como teaser público en
+                  la landing del curso, reproducible sin comprar pero cortado a
+                  esos segundos. Déjalo vacío para una lección normal. Elige una
+                  lección que no te importe que sea técnicamente extraíble (el
+                  corte es visual, el vídeo se sirve entero).
+                </p>
+              </div>
             </div>
           )}
 
