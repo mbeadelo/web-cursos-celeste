@@ -146,6 +146,13 @@ model Lesson {
   muxUploadId   String?    @unique
   muxAssetId    String?
   muxPlaybackId String?
+  // Teaser gratuito: si es > 0 en una lección VIDEO, esa lección se ofrece
+  // como vista previa pública en la landing del curso (/cursos/[slug]),
+  // reproducible sin matrícula pero cortada a estos segundos con un CTA de
+  // compra. NULL = lección normal (solo tras Enrollment). El corte es
+  // client-side: el asset firmado se sirve entero, así que elige una lección
+  // que no te importe que sea técnicamente extraíble.
+  previewSeconds Int?
   // PDF: object key in R2/S3
   fileKey       String?
   // TEXT: markdown body

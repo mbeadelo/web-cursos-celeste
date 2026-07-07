@@ -41,6 +41,7 @@ type Lesson = {
   moduleId: string | null;
   muxUploadId: string | null;
   muxPlaybackId: string | null;
+  previewSeconds: number | null;
   fileKey: string | null;
   body: string | null;
 };

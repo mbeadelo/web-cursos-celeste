@@ -34,6 +34,8 @@ function mapInputToData(input: LessonInput) {
         moduleId,
         muxUploadId: input.muxUploadId || null,
         muxPlaybackId: input.muxPlaybackId || null,
+        // 0/undefined → null: la lección deja de ser vista previa.
+        previewSeconds: input.previewSeconds ? input.previewSeconds : null,
         fileKey: null,
         body: null,
       };
@@ -44,6 +46,7 @@ function mapInputToData(input: LessonInput) {
         moduleId,
         fileKey: input.fileKey,
         muxPlaybackId: null,
+        previewSeconds: null,
         body: null,
       };
     case "TEXT":
@@ -54,6 +57,7 @@ function mapInputToData(input: LessonInput) {
         // TipTap HTML rendered with dangerouslySetInnerHTML in the student view.
         body: sanitizeRichHtml(input.body),
         muxPlaybackId: null,
+        previewSeconds: null,
         fileKey: null,
       };
   }
