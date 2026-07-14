@@ -64,6 +64,17 @@ stripe listen --forward-to localhost:3000/api/webhooks/stripe
 
 Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `StripeEvent` (PK = event id). Si conflict → ya procesado, salir 200. Sin esto se duplican matriculaciones.
 
+## ⚠️ Webhooks: SIEMPRE apuntar a `www`, nunca al apex
+
+El apex `bienvenidoatuplaza.com` hace **308 → `www.bienvenidoatuplaza.com`** (www es canónico). **Ni Stripe ni Mux siguen redirects**: cualquier webhook configurado contra el apex falla en el 308 y no se entrega nunca.
+
+Esto ya rompió los dos webhooks en producción (jul-2026): Stripe (71 entregas fallidas, reportadas como "other errors", no como 308) y Mux (14 vídeos procesados que nunca recibieron su `muxPlaybackId`, quedando invisibles para los alumnos de pago).
+
+- Toda URL de webhook debe llevar `www.`.
+- Al corregir uno, **editar el endpoint existente, no crear otro** → el signing secret no cambia y no hay que tocar Vercel.
+- Comprobación rápida: `curl -o /dev/null -w "%{http_code}\n" -X POST https://<host>/api/webhooks/<x> -d '{}'` → **308 = roto**; **400 = bien** (la app contesta, solo falta la firma).
+- Si un webhook de Mux se pierde y deja vídeos sin `muxPlaybackId`, reconciliar con `scripts/backfill-mux-playback.ts` (dry-run por defecto; ver cabecera del script).
+
 ## Autorización
 
 - **Sesión JWT** (no DB sessions). El rol se persiste en el token tras el primer login y en cada `update`. Si cambias el rol de un usuario en DB, su JWT no refleja el cambio hasta que el token rote (24 h por defecto).
@@ -104,6 +115,16 @@ Stripe re-entrega eventos. Antes de procesar `event.id`, intentar `INSERT` en `S
 - Helpers en `src/lib/lesson-url.ts` (`lessonHref`, `lessonSegment`, `lessonIdFromParam`). El parseo se apoya en que los `cuid` **no llevan guiones** → el id es el segmento tras el último `-`.
 - `src/app/dashboard/cursos/[slug]/page.tsx` es solo un **redirector**: resuelve la primera lección (u honra `?l=<id>` legacy) y redirige a su URL canónica; solo renderiza si el curso no tiene lecciones (estado vacío).
 - La vista real vive en `src/app/dashboard/cursos/[slug]/[lesson]/page.tsx`. Si el slug cosmético está obsoleto, hace 308 a la forma canónica.
+
+## Teaser / vista previa gratuita
+
+- Campo `Lesson.previewSeconds` (`Int?`). Si está puesto en una lección **VIDEO con `muxPlaybackId`**, esa lección se ofrece como teaser público en la landing `/cursos/[slug]`: se reproduce **sin matrícula**, cortada a esos segundos, y al llegar al corte tapa el vídeo con un CTA de compra. Se marca en el temario con un badge.
+- Se activa desde el admin (campo "Vista previa gratis (segundos)" en el diálogo de lección). Vacío = lección normal. Cualquier vídeo ya subido sirve: **no hay que resubir ni reprocesar nada**.
+- Solo se muestra **una** preview por curso: la primera por `order`. Marcar varias no muestra varias.
+- Componente `src/components/course-preview-player.tsx` (aparte del `VideoPlayer` de alumno: sin progreso ni watermark de contenido de pago).
+- ⚠️ **El corte es client-side**: el asset firmado se sirve entero al navegador, así que un usuario técnico puede extraer la lección completa. Es un **gancho de marketing, no contenido protegido** → marcar la lección de intro, nunca contenido premium. El contenido de pago sigue tras `Enrollment` en `/dashboard`.
+- Coste: reutiliza un asset ya almacenado (0 € de storage extra) y Mux solo cobra los minutos realmente servidos. A tráfico realista son céntimos/mes.
+- Los PACK (solo PDF) no pueden tener teaser con este mecanismo.
 
 ## Reseñas
 
