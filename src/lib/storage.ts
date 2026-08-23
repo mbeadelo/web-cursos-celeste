@@ -116,6 +116,27 @@ export async function getObjectBytes(key: string): Promise<Uint8Array> {
 }
 
 /**
+ * Fetch a public image (cover / site asset) for serving through `/img/<key>`.
+ * Returns null when the object doesn't exist so the route can 404 cleanly.
+ */
+export async function getPublicImage(
+  key: string
+): Promise<{ bytes: Uint8Array; contentType: string | null } | null> {
+  const cfg = readConfig();
+  const client = getClient();
+  try {
+    const res = await client.send(
+      new GetObjectCommand({ Bucket: cfg.bucket, Key: key })
+    );
+    if (!res.Body) return null;
+    const bytes = await res.Body.transformToByteArray();
+    return { bytes, contentType: res.ContentType ?? null };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Build a key for a cover image. Uses a random suffix to avoid collisions.
  */
 export function buildCoverKey(filename: string): string {

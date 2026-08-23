@@ -7,6 +7,7 @@ import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
 import { buildArticleJsonLd, jsonLdString } from "@/lib/json-ld";
 import { estimateReadingTimeMinutes } from "@/lib/utils";
+import { proxiedImageSrc } from "@/lib/public-image";
 
 const dateFormatter = new Intl.DateTimeFormat("es-ES", {
   dateStyle: "long",
@@ -121,7 +122,7 @@ export default async function ArticlePage({
           {article.coverUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={article.coverUrl}
+              src={proxiedImageSrc(article.coverUrl)}
               alt=""
               className="w-full aspect-[16/9] object-cover rounded-2xl border border-neutral-200"
             />

@@ -5,6 +5,7 @@ import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { estimateReadingTimeMinutes } from "@/lib/utils";
+import { proxiedImageSrc } from "@/lib/public-image";
 
 export const metadata: Metadata = {
   title: "Blog",
@@ -81,7 +82,7 @@ export default async function ArticlesIndex() {
                       {a.coverUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={a.coverUrl}
+                          src={proxiedImageSrc(a.coverUrl)}
                           alt=""
                           className="w-full h-full object-cover transition group-hover:scale-[1.02]"
                         />

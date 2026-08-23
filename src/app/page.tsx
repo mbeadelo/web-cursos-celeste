@@ -5,6 +5,7 @@ import { PublicFooter } from "@/components/public-footer";
 import { FeaturedCourses } from "@/components/featured-courses";
 import { AboutMe } from "@/components/about-me";
 import { getAllContent, pickContent } from "@/lib/site-content";
+import { proxiedImageSrc } from "@/lib/public-image";
 import {
   Footprints,
   FileText,
@@ -27,7 +28,7 @@ export default async function Home() {
   const aboutEyebrow = pickContent(content, "about.eyebrow");
   const aboutTitle = pickContent(content, "about.title");
   const aboutBody = pickContent(content, "about.body");
-  const aboutImage = pickContent(content, "about.image");
+  const aboutImage = proxiedImageSrc(pickContent(content, "about.image"));
   const whyEyebrow = pickContent(content, "home.why.eyebrow");
   const whyTitle = pickContent(content, "home.why.title");
   const whyFeatures = [

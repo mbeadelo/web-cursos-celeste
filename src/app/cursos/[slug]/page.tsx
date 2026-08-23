@@ -12,6 +12,7 @@ import { buildCourseJsonLd, jsonLdString } from "@/lib/json-ld";
 import { isStripeConfigured } from "@/lib/stripe";
 import { signPlaybackTokens } from "@/lib/mux";
 import { CoursePreviewPlayer } from "@/components/course-preview-player";
+import { proxiedImageSrc } from "@/lib/public-image";
 
 const formatter = new Intl.NumberFormat("es-ES", {
   style: "currency",
@@ -210,7 +211,7 @@ export default async function CourseDetailPage({
                 ) : course.coverUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={course.coverUrl}
+                    src={proxiedImageSrc(course.coverUrl)}
                     alt=""
                     className="w-full aspect-[16/9] object-cover rounded-2xl border border-neutral-200 shadow-sm"
                   />

@@ -158,6 +158,14 @@ Casi todo el texto público de la home es editable desde `/admin/contenido` sin 
 - **Logo**: `public/brand/logo-icon.png` (icono cohete+libro, fondo transparente). Lo usan `src/components/public-header.tsx`, `src/components/public-footer.tsx` y el hero (`src/app/page.tsx`). Único asset de marca commiteado.
 - **Subidas a R2 desde el navegador** (covers, imágenes de sitio, PDFs de lección) necesitan el host de R2 en `connect-src` de la CSP (`src/proxy.ts`): `https://*.r2.cloudflarestorage.com`. Sin él, el PUT firmado falla con "Failed to fetch". Recordatorio operativo: las `R2_*` deben estar en el scope **Production** de Vercel y el nombre exacto que valida `env.ts` es `R2_ACCESS_KEY_ID` (no `R2_ACCESS_KEY`).
 
+## ⚠️ Bloqueos LaLiga → imágenes públicas vía `/img/<key>`, no `r2.dev`
+
+Los ISPs españoles bloquean rangos de IP compartidos de Cloudflare durante las ventanas de partido (orden judicial de LaLiga, activa desde feb-2025). Eso tumba `pub-*.r2.dev` y `*.r2.cloudflarestorage.com` para usuarios afectados: un "Failed to fetch" al subir un PDF/cover desde `/admin` en fin de semana por la tarde **no es un bug** — es el bloqueo (workaround: datos móviles/VPN o esperar).
+
+- Las imágenes públicas (covers, `site/`) **se sirven por `/img/<key>`** (`src/app/img/[...key]/route.ts`): Vercel lee de R2 server-side (fuera de los bloqueos) y el CDN cachea la respuesta (`immutable` — las keys llevan timestamp+random). Solo permite prefijos `covers/` y `site/`; los ficheros de lección siguen por su ruta autorizada.
+- En DB se guarda la URL canónica de R2; la reescritura a `/img/` es **en render** vía `proxiedImageSrc()` (`src/lib/public-image.ts`). Al añadir un nuevo punto de renderizado público de imágenes de R2, envolver el `src` con ese helper.
+- `/img/` está excluido del matcher del proxy (no necesita CSP ni gating).
+
 ## Archivos críticos
 
 | Path | Rol |

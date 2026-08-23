@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { CourseBadge } from "@/components/course-badge";
+import { proxiedImageSrc } from "@/lib/public-image";
 
 type Badge = "BESTSELLER" | "NEW" | "COMING_SOON";
 
@@ -105,7 +106,7 @@ export async function FeaturedCourses({
               {c.coverUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={c.coverUrl}
+                  src={proxiedImageSrc(c.coverUrl)}
                   alt=""
                   className="w-full h-full object-cover transition group-hover:scale-[1.03]"
                 />

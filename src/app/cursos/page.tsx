@@ -5,6 +5,7 @@ import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { CourseBadge } from "@/components/course-badge";
+import { proxiedImageSrc } from "@/lib/public-image";
 
 export const metadata: Metadata = {
   title: "Cursos",
@@ -72,7 +73,7 @@ export default async function CursosPage() {
                       {c.coverUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={c.coverUrl}
+                          src={proxiedImageSrc(c.coverUrl)}
                           alt=""
                           className="w-full aspect-[16/9] object-cover"
                         />

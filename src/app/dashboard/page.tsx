@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { proxiedImageSrc } from "@/lib/public-image";
 
 export const metadata: Metadata = { title: "Mis cursos" };
 
@@ -121,7 +122,7 @@ export default async function DashboardPage() {
                     {e.course.coverUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={e.course.coverUrl}
+                        src={proxiedImageSrc(e.course.coverUrl)}
                         alt=""
                         className="w-full h-full object-cover transition group-hover:scale-[1.03]"
                       />
