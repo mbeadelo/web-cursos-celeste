@@ -5,6 +5,7 @@ const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const CourseBadgeEnum = z.enum(["BESTSELLER", "NEW", "COMING_SOON"]);
 export const CourseTypeEnum = z.enum(["COURSE", "PACK"]);
+export const BillingTypeEnum = z.enum(["ONE_TIME", "SUBSCRIPTION"]);
 
 export const CourseInputSchema = z
   .object({
@@ -12,6 +13,17 @@ export const CourseInputSchema = z
     // COURSE (default) or PACK (bundle of PDFs). Drives admin UI, public
     // section (/cursos vs /packs) and student rendering.
     type: CourseTypeEnum.default("COURSE"),
+    // ONE_TIME (default) or SUBSCRIPTION (cuota mensual). With SUBSCRIPTION,
+    // priceCents is the monthly fee and enrollmentFeeCents the one-off
+    // matrícula charged on the first invoice.
+    billing: BillingTypeEnum.default("ONE_TIME"),
+    enrollmentFeeCents: z
+      .number({ message: "Matrícula en céntimos" })
+      .int("Debe ser entero (céntimos)")
+      .nonnegative("No puede ser negativo")
+      .max(1_000_000, "Máximo 10.000€")
+      .optional()
+      .nullable(),
     slug: z
       .string()
       .trim()
@@ -44,10 +56,17 @@ export const CourseInputSchema = z
     targetAudience: z.string().trim().max(2000).optional().nullable(),
     whatYouLearn: z.string().trim().max(2000).optional().nullable(),
   })
+  .refine((data) => !(data.type === "PACK" && data.billing === "SUBSCRIPTION"), {
+    message: "Un pack no puede venderse por suscripción",
+    path: ["billing"],
+  })
   .transform((data) => ({
     ...data,
     slug: data.slug && data.slug.length > 0 ? data.slug : deriveSlug(data.title),
     coverUrl: data.coverUrl && data.coverUrl.length > 0 ? data.coverUrl : null,
+    // Matrícula solo tiene sentido en suscripción; en pago único se descarta.
+    enrollmentFeeCents:
+      data.billing === "SUBSCRIPTION" ? (data.enrollmentFeeCents ?? null) : null,
     badge: data.badge ?? null,
     featuredOrder: data.featuredOrder ?? null,
     targetAudience:

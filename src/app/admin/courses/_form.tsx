@@ -17,6 +17,13 @@ const BadgeFormEnum = z.enum(["", "BESTSELLER", "NEW", "COMING_SOON"]);
 
 const FormSchema = z.object({
   type: z.enum(["COURSE", "PACK"]),
+  billing: z.enum(["ONE_TIME", "SUBSCRIPTION"]),
+  enrollmentFeeEuros: z
+    .string()
+    .refine(
+      (v) => v === "" || (!Number.isNaN(Number(v)) && Number(v) >= 0),
+      "Debe ser un número >= 0 o vacío"
+    ),
   title: z.string().trim().min(3, "Mínimo 3 caracteres").max(200),
   slug: z.string().trim().max(100).optional().or(z.literal("")),
   description: z.string().trim().min(1, "Descripción requerida").max(5000),
@@ -45,10 +52,13 @@ type ActionResult =
 
 type CourseBadge = "BESTSELLER" | "NEW" | "COMING_SOON";
 type CourseType = "COURSE" | "PACK";
+type BillingType = "ONE_TIME" | "SUBSCRIPTION";
 
 type Props = {
   initial?: {
     type: CourseType;
+    billing: BillingType;
+    enrollmentFeeCents: number | null;
     title: string;
     slug: string;
     description: string;
@@ -62,6 +72,8 @@ type Props = {
   };
   action: (input: {
     type: CourseType;
+    billing: BillingType;
+    enrollmentFeeCents?: number | null;
     title: string;
     slug?: string;
     description: string;
@@ -100,6 +112,11 @@ export function CourseForm({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       type: initial?.type ?? "COURSE",
+      billing: initial?.billing ?? "ONE_TIME",
+      enrollmentFeeEuros:
+        initial?.enrollmentFeeCents != null
+          ? (initial.enrollmentFeeCents / 100).toFixed(2)
+          : "",
       title: initial?.title ?? "",
       slug: initial?.slug ?? "",
       description: initial?.description ?? "",
@@ -117,6 +134,7 @@ export function CourseForm({
   const published = watch("published");
   const coverUrl = watch("coverUrl");
   const type = watch("type");
+  const billing = watch("billing");
 
   async function onSubmit(values: FormValues) {
     setServerError(null);
@@ -124,6 +142,11 @@ export function CourseForm({
     const priceCents = Math.round(Number(values.priceEuros) * 100);
     const result = await action({
       type: values.type,
+      billing: values.billing,
+      enrollmentFeeCents:
+        values.billing === "SUBSCRIPTION" && values.enrollmentFeeEuros !== ""
+          ? Math.round(Number(values.enrollmentFeeEuros) * 100)
+          : null,
       title: values.title,
       slug: values.slug || undefined,
       description: values.description,
@@ -181,19 +204,64 @@ export function CourseForm({
         <Textarea rows={6} {...register("description")} />
       </Field>
 
-      <Field
-        label="Precio (€)"
-        hint="Se guarda internamente en céntimos."
-        error={errors.priceEuros?.message}
+      {type !== "PACK" && (
+        <Field
+          label="Modelo de cobro"
+          hint={
+            billing === "SUBSCRIPTION"
+              ? "El alumno paga una cuota cada mes (más una matrícula inicial opcional). Cancela cuando quiera y pierde el acceso."
+              : "El alumno paga una vez y tiene acceso ilimitado."
+          }
+          error={errors.billing?.message}
+        >
+          <select
+            {...register("billing")}
+            disabled={lockType}
+            className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-celeste disabled:bg-neutral-100 disabled:text-neutral-500"
+          >
+            <option value="ONE_TIME">Pago único</option>
+            <option value="SUBSCRIPTION">Suscripción mensual</option>
+          </select>
+        </Field>
+      )}
+
+      <div
+        className={
+          billing === "SUBSCRIPTION"
+            ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
+            : undefined
+        }
       >
-        <Input
-          type="number"
-          step="0.01"
-          min="0"
-          {...register("priceEuros")}
-          placeholder="49.00"
-        />
-      </Field>
+        <Field
+          label={billing === "SUBSCRIPTION" ? "Cuota mensual (€)" : "Precio (€)"}
+          hint="Se guarda internamente en céntimos."
+          error={errors.priceEuros?.message}
+        >
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            {...register("priceEuros")}
+            placeholder={billing === "SUBSCRIPTION" ? "140.00" : "49.00"}
+          />
+        </Field>
+
+        {billing === "SUBSCRIPTION" && (
+          <Field
+            label="Matrícula / material inicial (€)"
+            hint="Se cobra una sola vez junto a la primera cuota. Vacío = sin matrícula."
+            error={errors.enrollmentFeeEuros?.message}
+          >
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              {...register("enrollmentFeeEuros")}
+              placeholder="100.00"
+            />
+          </Field>
+        )}
+      </div>
 
       <Field
         label="Portada"

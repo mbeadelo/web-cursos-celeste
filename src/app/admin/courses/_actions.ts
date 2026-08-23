@@ -60,11 +60,15 @@ export async function updateCourse(
     return { ok: false, error: "Datos no válidos", fieldErrors: flattenErrors(parsed.error) };
   }
 
-  // `type` is immutable after creation (COURSE vs PACK). The edit form shows it
-  // locked; we also strip it here so a save never flips the type, regardless of
-  // how the disabled field serialises.
+  // `type` and `billing` are immutable after creation (COURSE vs PACK, pago
+  // único vs suscripción). The edit form shows them locked; we also strip them
+  // here so a save never flips them, regardless of how the disabled fields
+  // serialise. Flipping billing with live Stripe subscriptions would desync
+  // the mapping. (enrollmentFeeCents stays editable, but the validation
+  // transform nulls it for ONE_TIME courses — so a locked ONE_TIME course
+  // can't acquire a stray matrícula either.)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { type: _ignoredType, ...updateData } = parsed.data;
+  const { type: _ignoredType, billing: _ignoredBilling, ...updateData } = parsed.data;
   try {
     await db.course.update({ where: { id }, data: updateData });
   } catch (err: unknown) {

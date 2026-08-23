@@ -81,6 +81,8 @@ export default async function EditCoursePage({
           <CourseForm
             initial={{
               type: course.type,
+              billing: course.billing,
+              enrollmentFeeCents: course.enrollmentFeeCents,
               title: course.title,
               slug: course.slug,
               description: course.description,

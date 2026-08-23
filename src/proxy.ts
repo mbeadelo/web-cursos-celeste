@@ -110,7 +110,11 @@ function buildCsp(nonce: string, isDev: boolean): string {
     "worker-src": "'self' blob:",
     "object-src": "'none'",
     "base-uri": "'self'",
-    "form-action": "'self' https://checkout.stripe.com",
+    // billing.stripe.com: el form del dashboard postea a /api/billing-portal,
+    // que 303-redirige al Customer Portal — y form-action se aplica también
+    // al destino del redirect (mismo gotcha que checkout.stripe.com).
+    "form-action":
+      "'self' https://checkout.stripe.com https://billing.stripe.com",
     // 'self' (not 'none') so our own pages can embed our gated content —
     // e.g. the lesson PDF viewer iframe. Cross-origin framing stays blocked.
     "frame-ancestors": "'self'",

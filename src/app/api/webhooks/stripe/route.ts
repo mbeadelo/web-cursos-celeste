@@ -70,6 +70,14 @@ export async function POST(req: Request) {
       case "charge.refunded":
         await handleChargeRefunded(event.data.object);
         break;
+      // Ciclo de vida de suscripciones (preparación mensual). `updated` cubre
+      // renovaciones (cambia current_period_end), impagos (past_due) y la
+      // cancelación programada desde el portal; `deleted` es la cancelación
+      // efectiva → retirar acceso.
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted":
+        await handleSubscriptionChanged(event.data.object);
+        break;
       default:
         // Unhandled types: still 200 so Stripe doesn't retry.
         // The StripeEvent row records that we saw it.
@@ -172,6 +180,33 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     update: {},
   });
 
+  // Suscripción (preparación mensual): registrar el estado de Stripe para el
+  // portal de facturación y los eventos de ciclo de vida. Upsert por
+  // [userId, courseId]: si el alumno canceló y se vuelve a suscribir, la fila
+  // antigua se reutiliza con el subscription id nuevo.
+  if (session.mode === "subscription" && session.subscription) {
+    const subId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription.id;
+    const stripe = requireStripe();
+    const sub = await stripe.subscriptions.retrieve(subId);
+    const customerId =
+      typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+    const data = {
+      stripeSubscriptionId: sub.id,
+      stripeCustomerId: customerId,
+      status: mapSubscriptionStatus(sub.status),
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      currentPeriodEnd: subscriptionPeriodEnd(sub),
+    };
+    await db.subscription.upsert({
+      where: { userId_courseId: { userId: user.id, courseId: course.id } },
+      create: { userId: user.id, courseId: course.id, ...data },
+      update: data,
+    });
+  }
+
   // Welcome email. Best-effort — failure here doesn't roll back the
   // enrollment. The user can still log in via /login if the email never
   // arrives.
@@ -239,6 +274,83 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   } catch {
     // Already removed (admin revoked, or duplicate refund event) → no-op.
   }
+}
+
+async function handleSubscriptionChanged(sub: Stripe.Subscription) {
+  const row = await db.subscription.findUnique({
+    where: { stripeSubscriptionId: sub.id },
+    select: { id: true, userId: true, courseId: true },
+  });
+  if (!row) {
+    // Puede llegar un `updated` de la creación antes de que nuestro handler de
+    // checkout.session.completed haya insertado la fila (Stripe no garantiza
+    // orden). Inofensivo: ese handler guarda el estado fresco al procesar.
+    console.warn(
+      `[stripe webhook] subscription ${sub.id} sin fila local — ignorado`
+    );
+    return;
+  }
+
+  const status = mapSubscriptionStatus(sub.status);
+  await db.subscription.update({
+    where: { id: row.id },
+    data: {
+      status,
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
+      currentPeriodEnd: subscriptionPeriodEnd(sub),
+    },
+  });
+
+  if (status === "CANCELED") {
+    // Modelo acordado: al cancelar (o agotar los reintentos de impago) se
+    // pierde TODO el acceso, material inicial incluido.
+    try {
+      await db.enrollment.delete({
+        where: {
+          userId_courseId: { userId: row.userId, courseId: row.courseId },
+        },
+      });
+    } catch {
+      // Ya no existía (admin la quitó, evento duplicado) → no-op.
+    }
+  } else {
+    // ACTIVE o PAST_DUE (acceso se mantiene mientras Stripe reintenta el
+    // cobro). El upsert re-otorga acceso si un impago recuperado u otro flujo
+    // lo hubiera retirado.
+    await db.enrollment.upsert({
+      where: {
+        userId_courseId: { userId: row.userId, courseId: row.courseId },
+      },
+      create: { userId: row.userId, courseId: row.courseId, source: "PURCHASE" },
+      update: {},
+    });
+  }
+}
+
+function mapSubscriptionStatus(
+  status: Stripe.Subscription.Status
+): "ACTIVE" | "PAST_DUE" | "CANCELED" {
+  switch (status) {
+    case "active":
+    case "trialing":
+      return "ACTIVE";
+    case "past_due":
+    case "unpaid":
+      return "PAST_DUE";
+    default:
+      // canceled, incomplete, incomplete_expired, paused
+      return "CANCELED";
+  }
+}
+
+/**
+ * Fin del periodo pagado. Desde la API "Basil" (2025-03) current_period_end
+ * vive en cada subscription item, no en la suscripción; con un solo item
+ * (nuestro caso) el primero es el ciclo de la cuota.
+ */
+function subscriptionPeriodEnd(sub: Stripe.Subscription): Date | null {
+  const ts = sub.items?.data?.[0]?.current_period_end;
+  return typeof ts === "number" ? new Date(ts * 1000) : null;
 }
 
 function isUniqueConstraint(err: unknown): boolean {
