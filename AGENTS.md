@@ -10,6 +10,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Plataforma de cursos online (vídeo + PDFs) con autenticación de alumnos, pagos con Stripe y panel de administración. MVP. Desplegado en Vercel.
 
+## Base de conocimiento (cerebro)
+
+El conocimiento de contenido/negocio (temario, dudas de alumnos, decisiones de
+producto, copys) vive en `D:\workspace-claude\cerebros\web-cursos\` — consulta
+primero su `wiki/index.md` cuando necesites ese contexto. Este repo documenta
+solo el código; el cerebro, solo el negocio. No dupliques información entre ambos.
+
 Plan inicial completo: `C:\Users\Lolo\.claude\plans\composed-snuggling-scroll.md`.
 
 ## Stack
