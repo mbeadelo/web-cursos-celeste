@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
@@ -9,6 +10,13 @@ export const runtime = "nodejs";
 
 const SITE_URL =
   env.AUTH_URL?.replace(/\/$/, "") ?? "https://bienvenidoatuplaza.com";
+
+// stripe v22 no reexporta Checkout.SessionCreateParams en el namespace
+// agregado; derivamos el tipo de line item de la firma del método.
+type CheckoutCreateParams = NonNullable<
+  Parameters<Stripe["checkout"]["sessions"]["create"]>[0]
+>;
+type CheckoutLineItem = NonNullable<CheckoutCreateParams["line_items"]>[number];
 
 /**
  * POST /api/checkout
@@ -52,6 +60,8 @@ export async function POST(req: Request) {
       currency: true,
       published: true,
       coverUrl: true,
+      billing: true,
+      enrollmentFeeCents: true,
     },
   });
   if (!course) return badRequest("Curso no encontrado.");
@@ -77,28 +87,74 @@ export async function POST(req: Request) {
 
   const stripe = requireStripe();
 
-  const checkout = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["card"],
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: course.currency.toLowerCase(),
-          unit_amount: course.priceCents,
-          // El precio guardado (priceCents) es el que paga el alumno: IVA
-          // incluido. "inclusive" hace que Stripe Tax desglose el IVA de ese
-          // total en vez de sumarlo encima (que sería "exclusive").
-          tax_behavior: "inclusive",
-          product_data: {
-            name: course.title,
-            description: course.description.slice(0, 500),
-            images: course.coverUrl ? [course.coverUrl] : undefined,
+  const isSubscription = course.billing === "SUBSCRIPTION";
+  const currency = course.currency.toLowerCase();
+
+  // El precio guardado (priceCents) es el que paga el alumno: IVA incluido.
+  // "inclusive" hace que Stripe Tax desglose el IVA de ese total en vez de
+  // sumarlo encima (que sería "exclusive").
+  const lineItems: CheckoutLineItem[] = isSubscription
+    ? [
+        // Cuota mensual recurrente…
+        {
+          quantity: 1,
+          price_data: {
+            currency,
+            unit_amount: course.priceCents,
+            tax_behavior: "inclusive",
+            recurring: { interval: "month" },
+            product_data: {
+              name: `${course.title} — cuota mensual`,
+              description: course.description.slice(0, 500),
+              images: course.coverUrl ? [course.coverUrl] : undefined,
+            },
           },
         },
-      },
-    ],
+        // …más la matrícula/material, cargo único que Stripe añade solo a la
+        // primera factura (los one-time items en mode=subscription no se
+        // repiten en las renovaciones).
+        ...(course.enrollmentFeeCents && course.enrollmentFeeCents > 0
+          ? [
+              {
+                quantity: 1,
+                price_data: {
+                  currency,
+                  unit_amount: course.enrollmentFeeCents,
+                  tax_behavior: "inclusive" as const,
+                  product_data: {
+                    name: `${course.title} — matrícula y material inicial`,
+                  },
+                },
+              },
+            ]
+          : []),
+      ]
+    : [
+        {
+          quantity: 1,
+          price_data: {
+            currency,
+            unit_amount: course.priceCents,
+            tax_behavior: "inclusive",
+            product_data: {
+              name: course.title,
+              description: course.description.slice(0, 500),
+              images: course.coverUrl ? [course.coverUrl] : undefined,
+            },
+          },
+        },
+      ];
+
+  const checkout = await stripe.checkout.sessions.create({
+    mode: isSubscription ? "subscription" : "payment",
+    payment_method_types: ["card"],
+    line_items: lineItems,
     metadata: { courseId: course.id },
+    // También en la suscripción de Stripe, para que los eventos
+    // customer.subscription.* puedan mapearse al curso sin lookups extra.
+    ...(isSubscription
+      ? { subscription_data: { metadata: { courseId: course.id } } }
+      : {}),
     // Pre-fill customer email if logged in. Otherwise Stripe asks for it.
     customer_email: session?.user.email ?? undefined,
     // Stripe Tax: requires Tax registration set up in the Stripe dashboard.

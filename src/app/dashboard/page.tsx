@@ -51,6 +51,23 @@ export default async function DashboardPage() {
     : [];
   const completedSet = new Set(completed.map((c) => c.lessonId));
 
+  // Suscripciones (preparación mensual): mostramos el estado y el acceso al
+  // portal de Stripe (cambiar tarjeta, cancelar). Las CANCELED se omiten —
+  // su Enrollment ya no existe y la tarjeta del curso tampoco.
+  const subscriptions = await db.subscription.findMany({
+    where: { userId: session.user.id, status: { not: "CANCELED" } },
+    select: {
+      id: true,
+      status: true,
+      cancelAtPeriodEnd: true,
+      currentPeriodEnd: true,
+      course: { select: { title: true } },
+    },
+  });
+  const subDateFormatter = new Intl.DateTimeFormat("es-ES", {
+    dateStyle: "long",
+  });
+
   return (
     <main className="flex-1">
       <div className="border-b border-neutral-200 bg-gradient-to-b from-brand-celeste/8 to-white">
@@ -86,7 +103,55 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="max-w-5xl mx-auto px-6 py-10 space-y-8">
+        {subscriptions.length > 0 && (
+          <section className="rounded-xl border border-neutral-200 bg-white p-5 space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">
+              Tu suscripción
+            </h2>
+            <ul className="space-y-2">
+              {subscriptions.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex flex-wrap items-center justify-between gap-3 text-sm"
+                >
+                  <div>
+                    <p className="font-medium">{s.course.title}</p>
+                    <p className="text-neutral-600">
+                      {s.status === "PAST_DUE" ? (
+                        <span className="text-red-600 font-medium">
+                          Pago pendiente — revisa tu tarjeta para no perder el
+                          acceso
+                        </span>
+                      ) : s.cancelAtPeriodEnd && s.currentPeriodEnd ? (
+                        <>
+                          Cancelada — acceso hasta el{" "}
+                          {subDateFormatter.format(s.currentPeriodEnd)}
+                        </>
+                      ) : s.currentPeriodEnd ? (
+                        <>
+                          Activa — próxima renovación el{" "}
+                          {subDateFormatter.format(s.currentPeriodEnd)}
+                        </>
+                      ) : (
+                        "Activa"
+                      )}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <form action="/api/billing-portal" method="POST">
+              <button
+                type="submit"
+                className="text-sm font-medium text-brand-celeste-deep hover:text-brand-magenta underline cursor-pointer"
+              >
+                Gestionar suscripción (tarjeta, facturas, cancelar) →
+              </button>
+            </form>
+          </section>
+        )}
+
         {enrollments.length === 0 ? (
           <section className="rounded-xl border border-dashed border-neutral-300 bg-white p-12 text-center space-y-3">
             <p className="text-neutral-700 font-medium">

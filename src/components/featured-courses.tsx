@@ -15,6 +15,7 @@ type Card = {
   title: string;
   description: string;
   priceCents: number;
+  monthly: boolean;
   coverUrl: string | null;
   badge: Badge | null;
 };
@@ -39,6 +40,7 @@ export async function FeaturedCourses({
       title: true,
       description: true,
       priceCents: true,
+      billing: true,
       coverUrl: true,
       badge: true,
     },
@@ -49,6 +51,7 @@ export async function FeaturedCourses({
     title: c.title,
     description: c.description,
     priceCents: c.priceCents,
+    monthly: c.billing === "SUBSCRIPTION",
     coverUrl: c.coverUrl,
     badge: c.badge,
   }));
@@ -127,6 +130,7 @@ export async function FeaturedCourses({
               </p>
               <p className="pt-1 text-sm font-semibold text-brand-celeste-deep">
                 {formatter.format(c.priceCents / 100)}
+                {c.monthly && "/mes"}
               </p>
             </div>
           </Link>

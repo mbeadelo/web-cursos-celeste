@@ -38,6 +38,7 @@ export default async function CursosPage() {
       title: true,
       description: true,
       priceCents: true,
+      billing: true,
       coverUrl: true,
       badge: true,
     },
@@ -91,6 +92,7 @@ export default async function CursosPage() {
                       </p>
                       <p className="text-sm font-semibold pt-1 text-brand-celeste-deep">
                         {formatter.format(c.priceCents / 100)}
+                        {c.billing === "SUBSCRIPTION" && "/mes"}
                       </p>
                     </CardContent>
                   </Card>

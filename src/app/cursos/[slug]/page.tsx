@@ -248,13 +248,22 @@ export default async function CourseDetailPage({
                 {pdfCount > 0 && (
                   <Stat label="Materiales" value={String(pdfCount)} />
                 )}
-                <Stat label="Acceso" value="Ilimitado" />
+                <Stat
+                  label="Acceso"
+                  value={
+                    course.billing === "SUBSCRIPTION"
+                      ? "Mientras estés suscrito"
+                      : "Ilimitado"
+                  }
+                />
               </dl>
             </div>
 
             <aside className="md:sticky md:top-6 hidden md:block space-y-4 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
               <PriceBlock
                 priceCents={course.priceCents}
+                subscription={course.billing === "SUBSCRIPTION"}
+                enrollmentFeeCents={course.enrollmentFeeCents}
                 courseId={course.id}
                 courseSlug={course.slug}
                 enrolled={enrolled}
@@ -434,13 +443,25 @@ export default async function CourseDetailPage({
             </p>
             <p className="text-lg font-bold text-brand-celeste-deep tabular-nums leading-tight">
               {formatter.format(course.priceCents / 100)}
+              {course.billing === "SUBSCRIPTION" && (
+                <span className="text-sm font-semibold">/mes</span>
+              )}
             </p>
+            {course.billing === "SUBSCRIPTION" &&
+              course.enrollmentFeeCents != null &&
+              course.enrollmentFeeCents > 0 && (
+                <p className="text-[11px] text-neutral-500 leading-tight">
+                  + {formatter.format(course.enrollmentFeeCents / 100)} de
+                  matrícula
+                </p>
+              )}
           </div>
           <MobileCta
             courseId={course.id}
             courseSlug={course.slug}
             enrolled={enrolled}
             stripeReady={stripeReady}
+            subscription={course.billing === "SUBSCRIPTION"}
           />
         </div>
       </div>
@@ -461,6 +482,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function PriceBlock({
   priceCents,
+  subscription,
+  enrollmentFeeCents,
   courseId,
   courseSlug,
   enrolled,
@@ -468,19 +491,36 @@ function PriceBlock({
   hasSession,
 }: {
   priceCents: number;
+  subscription: boolean;
+  enrollmentFeeCents: number | null;
   courseId: string;
   courseSlug: string;
   enrolled: boolean;
   stripeReady: boolean;
   hasSession: boolean;
 }) {
+  const hasFee = subscription && enrollmentFeeCents != null && enrollmentFeeCents > 0;
   return (
     <>
       <div>
         <p className="text-xs uppercase tracking-wide text-neutral-500">Precio</p>
         <p className="text-3xl font-bold text-brand-celeste-deep tabular-nums">
           {formatter.format(priceCents / 100)}
+          {subscription && (
+            <span className="text-lg font-semibold">/mes</span>
+          )}
         </p>
+        {hasFee && (
+          <p className="text-sm text-neutral-600 mt-1 leading-snug">
+            + {formatter.format(enrollmentFeeCents / 100)} de matrícula y
+            material inicial
+            <span className="block text-xs text-neutral-500">
+              Primer pago:{" "}
+              {formatter.format((priceCents + enrollmentFeeCents) / 100)} ·
+              después {formatter.format(priceCents / 100)}/mes
+            </span>
+          </p>
+        )}
       </div>
       {enrolled ? (
         <Link
@@ -497,7 +537,7 @@ function PriceBlock({
               type="submit"
               className="block w-full rounded-full bg-brand-celeste text-brand-celeste-foreground px-4 py-3 font-semibold hover:bg-brand-celeste-deep transition cursor-pointer"
             >
-              Comprar curso
+              {subscription ? "Empezar la preparación" : "Comprar curso"}
             </button>
           </form>
           {!hasSession && (
@@ -523,7 +563,11 @@ function PriceBlock({
       <ul className="text-xs text-neutral-600 space-y-1.5 pt-2 border-t border-neutral-200">
         <li className="flex gap-2">
           <span className="text-brand-celeste-deep">✓</span>
-          <span>Acceso ilimitado</span>
+          <span>
+            {subscription
+              ? "Contenido nuevo cada mes"
+              : "Acceso ilimitado"}
+          </span>
         </li>
         <li className="flex gap-2">
           <span className="text-brand-celeste-deep">✓</span>
@@ -533,6 +577,12 @@ function PriceBlock({
           <span className="text-brand-celeste-deep">✓</span>
           <span>Resolución de dudas</span>
         </li>
+        {subscription && (
+          <li className="flex gap-2">
+            <span className="text-brand-celeste-deep">✓</span>
+            <span>Cancela cuando quieras desde tu área de alumno</span>
+          </li>
+        )}
       </ul>
     </>
   );
@@ -543,11 +593,13 @@ function MobileCta({
   courseSlug,
   enrolled,
   stripeReady,
+  subscription,
 }: {
   courseId: string;
   courseSlug: string;
   enrolled: boolean;
   stripeReady: boolean;
+  subscription: boolean;
 }) {
   if (enrolled) {
     return (
@@ -577,7 +629,7 @@ function MobileCta({
         type="submit"
         className="rounded-full bg-brand-celeste text-brand-celeste-foreground px-5 py-2.5 font-semibold text-sm cursor-pointer"
       >
-        Comprar
+        {subscription ? "Suscribirme" : "Comprar"}
       </button>
     </form>
   );

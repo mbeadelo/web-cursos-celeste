@@ -133,6 +133,16 @@ Esto ya rompió los dos webhooks en producción (jul-2026): Stripe (71 entregas 
 - Coste: reutiliza un asset ya almacenado (0 € de storage extra) y Mux solo cobra los minutos realmente servidos. A tráfico realista son céntimos/mes.
 - Los PACK (solo PDF) no pueden tener teaser con este mecanismo.
 
+## Suscripciones (preparación mensual)
+
+- `Course.billing` = `ONE_TIME` (default) o `SUBSCRIPTION`. En SUBSCRIPTION, `priceCents` es la **cuota mensual** y `enrollmentFeeCents` la **matrícula/material** que se cobra una sola vez en la primera factura (item one-time en el Checkout de modo `subscription`; Stripe no lo repite en renovaciones). `billing` es **inmutable tras crear** el curso (como `type`): el form lo bloquea y `updateCourse` lo descarta. Los PACK no pueden ser suscripción (refine en `validations/course.ts`).
+- **El acceso sigue viviendo en `Enrollment`**: se crea al completarse el checkout y se **borra** cuando la suscripción muere (modelo acordado: al cancelar se pierde todo, matrícula incluida). Así `canAccessLesson`, dashboard y demás gating funcionan sin cambios. El modelo `Subscription` (unique `stripeSubscriptionId` y `[userId, courseId]`) solo refleja el estado de Stripe.
+- **Webhooks**: `checkout.session.completed` (modo subscription → upsert `Subscription` + `Enrollment`), `customer.subscription.updated` (renovaciones, past_due, cancel_at_period_end) y `customer.subscription.deleted` (cancelación efectiva → borrar `Enrollment`). ⚠️ El endpoint de Stripe en producción filtra por evento: **añadir los dos `customer.subscription.*` al endpoint existente** (editar, no recrear; y siempre `www`).
+- Impago: `past_due` mantiene el acceso mientras Stripe reintenta; configurar en Stripe (Settings → Subscriptions/Billing) que tras agotar reintentos la suscripción se **cancele** (eso dispara el `deleted` que retira el acceso).
+- **Portal de cliente**: `POST /api/billing-portal` (botón en `/dashboard`) redirige al Customer Portal (tarjeta, facturas, cancelar). Requiere **guardar una vez** la configuración del portal en el dashboard de Stripe (test y live por separado). El 303 va a `billing.stripe.com`, que está en `form-action` del CSP (mismo gotcha que `checkout.stripe.com`).
+- Stripe SDK v22 (API "Basil"): `current_period_end` vive en `subscription.items.data[0]`, no en la suscripción; y `Checkout.SessionCreateParams` no se reexporta (en `checkout/route.ts` se deriva de la firma del método).
+- Un `charge.refunded` de una factura de suscripción no encuentra `Order` por payment intent (las suscripciones no lo guardan) → se loguea y no retira acceso; para reembolsar+expulsar, cancelar la suscripción además del refund.
+
 ## Reseñas
 
 - Modelo `Review` con estados PENDING/APPROVED/REJECTED y `(userId, courseId)` único.
