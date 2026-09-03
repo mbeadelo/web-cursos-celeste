@@ -20,10 +20,15 @@ let _redis: Redis | null = null;
 function redis(): Redis | null {
   if (_redis) return _redis;
   if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) return null;
-  _redis = new Redis({
-    url: env.UPSTASH_REDIS_REST_URL,
-    token: env.UPSTASH_REDIS_REST_TOKEN,
-  });
+  try {
+    _redis = new Redis({
+      url: env.UPSTASH_REDIS_REST_URL,
+      token: env.UPSTASH_REDIS_REST_TOKEN,
+    });
+  } catch (err) {
+    console.error("[rate-limit] cliente Redis no construible, sin limiter:", err);
+    return null;
+  }
   return _redis;
 }
 
@@ -48,8 +53,17 @@ function makeLimiter(prefix: string, tokens: number, window: string): Limiter {
   });
   return {
     async limit(key: string) {
-      const res = await rl.limit(key);
-      return { success: res.success, reset: res.reset };
+      // Fail-open: si Redis no responde (credenciales rotas, base borrada,
+      // caída de Upstash), dejamos pasar la petición en vez de tumbar el
+      // endpoint con un 500 — un limiter caído no puede bloquear compras.
+      // El error queda en los logs de Vercel para detectarlo.
+      try {
+        const res = await rl.limit(key);
+        return { success: res.success, reset: res.reset };
+      } catch (err) {
+        console.error(`[rate-limit] limiter "${prefix}" falló, fail-open:`, err);
+        return { success: true, reset: 0 };
+      }
     },
   };
 }
