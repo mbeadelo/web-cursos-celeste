@@ -20,6 +20,10 @@ import * as Sentry from "@sentry/nextjs";
 const THIRD_PARTY_NOISE = [
   // WebView de iOS: in-app browsers de Instagram/WhatsApp inyectan esto.
   "webkit.messageHandlers",
+  // WebView de Android (Instagram/Facebook): su script inyectado
+  // (navigation_performance_logger_android) falla al llamar postMessage
+  // hacia el código nativo de la app. Visto en prod sep-2026.
+  "Java exception was raised during method invocation",
   // In-app browser de la app de Bing (Android).
   "instantSearchSDKJSBridgeClearHighlight",
   // Aviso benigno de layout, no rompe nada; muy común.
@@ -34,8 +38,10 @@ const THIRD_PARTY_NOISE = [
   "conduitPage",
 ];
 
-// Scripts servidos desde extensiones del navegador: nada nuestro vive ahí.
+// Scripts servidos desde extensiones del navegador o inyectados por apps
+// nativas (scheme app:// de los in-app browsers de Meta): nada nuestro vive ahí.
 const EXTENSION_URLS = [
+  /^app:\/\//i,
   /extensions\//i,
   /^chrome:\/\//i,
   /^chrome-extension:\/\//i,
