@@ -99,6 +99,16 @@ Reglas que mantienen esto coherente:
 - **Upload nuevo resetea `muxAssetId` y `muxPlaybackId`** (`/api/mux/upload-url` y `updateLesson`).
 - **`updateLesson` no pisa `muxPlaybackId` con null** si el form llega vacío y el upload no ha cambiado (carrera "diálogo abierto mientras Mux termina").
 - Asset `errored` en Mux → se limpian los ids (igual que el webhook) para poder resubir.
+- El webhook de Mux es **fail-closed** desde sep-2026: sin `MUX_WEBHOOK_SECRET` responde 503 (antes aceptaba eventos sin firma, lo que permitía sustituir el vídeo de una lección con un POST). En local, usar el secret del entorno Development de Mux.
+
+## Stripe: la provisión de compras tampoco depende del webhook
+
+Mismo principio. `src/lib/stripe-provision.ts` (`provisionCheckoutSession`) crea User + Order + Enrollment (+ Subscription) y manda el email de bienvenida. La llaman dos sitios:
+
+- El webhook `checkout.session.completed` / `checkout.session.async_payment_succeeded` (camino rápido).
+- La página `/checkout/success`, que recupera la sesión por `session_id` y provisiona si Stripe la da por `complete` y pagada. Si el webhook ya pasó, no hace nada.
+
+Idempotencia: `Order` se crea con `create`; un P2002 = ya provisionado (no se repite el email). Enrollment y Subscription se upsertean siempre para curar provisiones a medias. `payment_status === "unpaid"` (pagos asíncronos) no provisiona. Los fallos del webhook y los early-return permanentes (sin courseId, sin email, curso borrado) van a Sentry con tag `stripe-webhook`.
 
 ## Autorización
 
@@ -218,6 +228,7 @@ Los ISPs españoles bloquean rangos de IP compartidos de Cloudflare durante las 
 | `src/lib/site-content.ts` | Lookup + defaults de `SiteContent` |
 | `src/lib/html.ts` | Sanitizer del editor TipTap |
 | `src/app/api/webhooks/stripe/route.ts` | Receptor de eventos Stripe |
+| `src/lib/stripe-provision.ts` | Provisión de una compra (User+Order+Enrollment+Subscription); compartida por webhook y `/checkout/success` |
 | `src/app/api/webhooks/mux/route.ts` | Receptor de eventos Mux |
 | `src/lib/mux-reconcile.ts` | Reconciliación upload→asset→playback contra la API de Mux (no depender del webhook) |
 | `src/app/api/cron/mux-reconcile/route.ts` | Cron diario (Vercel) que barre vídeos pendientes; auth por `CRON_SECRET` |

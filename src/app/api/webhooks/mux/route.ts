@@ -21,24 +21,24 @@ export const runtime = "nodejs";
  * with `MUX_WEBHOOK_SECRET` and compare.
  */
 export async function POST(req: Request) {
-  if (!isMuxConfigured()) {
-    return new Response("Mux no configurado", { status: 503 });
+  // Fail-closed, igual que Stripe: sin secret de firma el endpoint no acepta
+  // nada. Antes aceptaba eventos sin firmar si faltaba la variable, lo que
+  // permitía a cualquiera sustituir o borrar el vídeo de una lección con un
+  // POST (los lessonId van en la URL de todo alumno). Para probar en local,
+  // usar el secret del entorno Development de Mux.
+  if (!isMuxConfigured() || !env.MUX_WEBHOOK_SECRET) {
+    return new Response("Mux webhook no configurado", { status: 503 });
   }
 
   const signatureHeader = req.headers.get("mux-signature");
   const rawBody = await req.text();
 
-  if (env.MUX_WEBHOOK_SECRET) {
-    if (!signatureHeader) {
-      return new Response("Missing mux-signature header", { status: 400 });
-    }
-    if (!verifyMuxSignature(rawBody, signatureHeader, env.MUX_WEBHOOK_SECRET)) {
-      return new Response("Invalid signature", { status: 400 });
-    }
+  if (!signatureHeader) {
+    return new Response("Missing mux-signature header", { status: 400 });
   }
-  // If MUX_WEBHOOK_SECRET is unset (shouldn't be in prod), we accept the
-  // event but log a warning. This lets us test the endpoint locally before
-  // configuring webhook signing.
+  if (!verifyMuxSignature(rawBody, signatureHeader, env.MUX_WEBHOOK_SECRET)) {
+    return new Response("Invalid signature", { status: 400 });
+  }
 
   let event: { type?: string; data?: Record<string, unknown> };
   try {

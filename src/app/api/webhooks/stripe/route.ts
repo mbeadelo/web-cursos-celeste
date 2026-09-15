@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
+import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/db";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import { env } from "@/lib/env";
-import { sendPurchaseWelcomeEmail } from "@/lib/email";
+import {
+  provisionCheckoutSession,
+  mapSubscriptionStatus,
+  subscriptionPeriodEnd,
+  isUniqueConstraint,
+} from "@/lib/stripe-provision";
 
 export const runtime = "nodejs";
 
@@ -65,7 +71,9 @@ export async function POST(req: Request) {
   try {
     switch (event.type) {
       case "checkout.session.completed":
-        await handleCheckoutCompleted(event.data.object);
+      // Pago asíncrono confirmado después (SEPA, etc.): misma provisión.
+      case "checkout.session.async_payment_succeeded":
+        await provisionCheckoutSession(event.data.object, { source: "webhook" });
         break;
       case "charge.refunded":
         await handleChargeRefunded(event.data.object);
@@ -93,11 +101,19 @@ export async function POST(req: Request) {
     // no email) early-return without throwing, so they don't reach here and
     // won't loop.
     console.error(`[stripe webhook] error handling ${event.type}:`, err);
+    Sentry.captureException(err, {
+      tags: { area: "stripe-webhook", eventType: event.type },
+      extra: { eventId: event.id },
+    });
     await db.stripeEvent.delete({ where: { id: event.id } }).catch(() => {
       // Even the rollback failed → the row stays and will block retries. Log
       // so it can be replayed manually from the Stripe Dashboard.
       console.error(
         `[stripe webhook] could not roll back StripeEvent ${event.id}`
+      );
+      Sentry.captureMessage(
+        `[stripe webhook] StripeEvent ${event.id} (${event.type}) huérfano: bloqueará reintentos, reenviar a mano desde Stripe`,
+        { level: "fatal" }
       );
     });
     return new Response("Webhook handler error", { status: 500 });
@@ -106,120 +122,9 @@ export async function POST(req: Request) {
   return NextResponse.json({ received: true });
 }
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  const courseId = session.metadata?.courseId;
-  if (!courseId) {
-    console.error("[stripe webhook] checkout.session.completed without courseId metadata", session.id);
-    return;
-  }
-
-  const email = session.customer_details?.email?.toLowerCase();
-  if (!email) {
-    console.error("[stripe webhook] checkout.session.completed without email", session.id);
-    return;
-  }
-
-  const course = await db.course.findUnique({
-    where: { id: courseId },
-    select: { id: true, title: true },
-  });
-  if (!course) {
-    console.error("[stripe webhook] course not found:", courseId);
-    return;
-  }
-
-  // Upsert User. This bypasses the locked Auth.js adapter on purpose — Stripe
-  // is a sanctioned provisioning path. See docs/fases/fase-1-auth.md.
-  const existingUser = await db.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-  const user = existingUser
-    ? existingUser
-    : await db.user.create({ data: { email }, select: { id: true } });
-
-  const isNewUser = !existingUser;
-
-  const paymentIntentId =
-    typeof session.payment_intent === "string"
-      ? session.payment_intent
-      : session.payment_intent?.id ?? null;
-
-  // Order is the durable record of the transaction. Created idempotently:
-  // upserts by stripeSessionId so a re-delivered event doesn't dupe.
-  await db.order.upsert({
-    where: { stripeSessionId: session.id },
-    create: {
-      userId: user.id,
-      courseId: course.id,
-      stripeSessionId: session.id,
-      stripePaymentIntentId: paymentIntentId,
-      status: "PAID",
-      amountCents: session.amount_total ?? 0,
-      currency: session.currency ?? "eur",
-    },
-    update: {
-      stripePaymentIntentId: paymentIntentId,
-      status: "PAID",
-      amountCents: session.amount_total ?? 0,
-    },
-  });
-
-  // Enrollment: upsert by composite unique [userId, courseId]. If the admin
-  // already enrolled them manually, this is a no-op and we keep MANUAL —
-  // we don't want to overwrite the existing source.
-  await db.enrollment.upsert({
-    where: {
-      userId_courseId: { userId: user.id, courseId: course.id },
-    },
-    create: {
-      userId: user.id,
-      courseId: course.id,
-      source: "PURCHASE",
-    },
-    update: {},
-  });
-
-  // Suscripción (preparación mensual): registrar el estado de Stripe para el
-  // portal de facturación y los eventos de ciclo de vida. Upsert por
-  // [userId, courseId]: si el alumno canceló y se vuelve a suscribir, la fila
-  // antigua se reutiliza con el subscription id nuevo.
-  if (session.mode === "subscription" && session.subscription) {
-    const subId =
-      typeof session.subscription === "string"
-        ? session.subscription
-        : session.subscription.id;
-    const stripe = requireStripe();
-    const sub = await stripe.subscriptions.retrieve(subId);
-    const customerId =
-      typeof sub.customer === "string" ? sub.customer : sub.customer.id;
-    const data = {
-      stripeSubscriptionId: sub.id,
-      stripeCustomerId: customerId,
-      status: mapSubscriptionStatus(sub.status),
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
-      currentPeriodEnd: subscriptionPeriodEnd(sub),
-    };
-    await db.subscription.upsert({
-      where: { userId_courseId: { userId: user.id, courseId: course.id } },
-      create: { userId: user.id, courseId: course.id, ...data },
-      update: data,
-    });
-  }
-
-  // Welcome email. Best-effort — failure here doesn't roll back the
-  // enrollment. The user can still log in via /login if the email never
-  // arrives.
-  try {
-    await sendPurchaseWelcomeEmail({
-      to: email,
-      courseTitle: course.title,
-      isNewUser,
-    });
-  } catch (err) {
-    console.error("[stripe webhook] welcome email failed:", err);
-  }
-}
+// La provisión de checkout (User + Order + Enrollment + Subscription) vive en
+// src/lib/stripe-provision.ts: la comparte con /checkout/success, que la
+// ejecuta también por si este webhook no llega.
 
 async function handleChargeRefunded(charge: Stripe.Charge) {
   const paymentIntentId =
@@ -327,34 +232,3 @@ async function handleSubscriptionChanged(sub: Stripe.Subscription) {
   }
 }
 
-function mapSubscriptionStatus(
-  status: Stripe.Subscription.Status
-): "ACTIVE" | "PAST_DUE" | "CANCELED" {
-  switch (status) {
-    case "active":
-    case "trialing":
-      return "ACTIVE";
-    case "past_due":
-    case "unpaid":
-      return "PAST_DUE";
-    default:
-      // canceled, incomplete, incomplete_expired, paused
-      return "CANCELED";
-  }
-}
-
-/**
- * Fin del periodo pagado. Desde la API "Basil" (2025-03) current_period_end
- * vive en cada subscription item, no en la suscripción; con un solo item
- * (nuestro caso) el primero es el ciclo de la cuota.
- */
-function subscriptionPeriodEnd(sub: Stripe.Subscription): Date | null {
-  const ts = sub.items?.data?.[0]?.current_period_end;
-  return typeof ts === "number" ? new Date(ts * 1000) : null;
-}
-
-function isUniqueConstraint(err: unknown): boolean {
-  if (typeof err !== "object" || err === null) return false;
-  const e = err as { code?: string };
-  return e.code === "P2002";
-}
