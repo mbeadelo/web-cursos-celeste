@@ -30,6 +30,9 @@ const schema = z.object({
   MUX_WEBHOOK_SECRET: z.string().optional(),
   MUX_SIGNING_KEY_ID: z.string().optional(),
   MUX_SIGNING_PRIVATE_KEY: z.string().optional(),
+  // Vercel Cron: si existe, Vercel la manda como `Authorization: Bearer` en
+  // cada disparo programado. Sin ella los endpoints /api/cron/* responden 503.
+  CRON_SECRET: z.string().min(16).optional(),
 
   // Cloudflare R2 (Fase 4)
   R2_ACCOUNT_ID: z.string().optional(),

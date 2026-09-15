@@ -48,9 +48,12 @@ export async function POST(req: Request) {
         lessonId: lesson.id,
         corsOrigin: origin,
       });
+      // Upload nuevo = vídeo nuevo: se resetean asset y playback del anterior.
+      // Si no, la reconciliación (mux-reconcile) vería el playbackId viejo y
+      // daría la lección por lista con el vídeo antiguo.
       await db.lesson.update({
         where: { id: lesson.id },
-        data: { muxUploadId: uploadId },
+        data: { muxUploadId: uploadId, muxAssetId: null, muxPlaybackId: null },
       });
       return NextResponse.json({ uploadUrl, uploadId });
     }

@@ -8,6 +8,7 @@ import { LessonsList } from "./_lessons-list";
 import { ModulesManager } from "./_modules-manager";
 import { isStorageConfigured } from "@/lib/storage";
 import { isMuxConfigured } from "@/lib/mux";
+import { reconcilePendingVideos } from "@/lib/mux-reconcile";
 
 export const metadata: Metadata = { title: "Editar curso" };
 
@@ -17,6 +18,14 @@ export default async function EditCoursePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // Antes de leer las lecciones, reconciliar contra Mux las que tengan vídeo
+  // subido pero sin playbackId: así el admin ve "Vídeo listo" en cuanto Mux
+  // termina, sin depender de que el webhook haya llegado. Un fallo de Mux no
+  // debe tumbar la página de edición.
+  await reconcilePendingVideos({ courseId: id, force: true }).catch((err) => {
+    console.error("[admin course] mux reconcile falló:", err);
+  });
 
   const course = await db.course.findUnique({
     where: { id },

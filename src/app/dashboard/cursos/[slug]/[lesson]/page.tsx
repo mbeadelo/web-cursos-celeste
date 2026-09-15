@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { canAccessCourse } from "@/lib/access";
 import { signPlaybackTokens, type MuxPlaybackTokens } from "@/lib/mux";
+import { reconcileLessonVideo } from "@/lib/mux-reconcile";
 import { lessonHref, lessonSegment, lessonIdFromParam } from "@/lib/lesson-url";
 import { VideoPlayer } from "@/components/video-player";
 import { MarkLessonComplete } from "@/components/mark-lesson-complete";
@@ -70,6 +71,8 @@ export default async function StudentLessonPage({
           title: true,
           type: true,
           moduleId: true,
+          muxUploadId: true,
+          muxAssetId: true,
           muxPlaybackId: true,
           fileKey: true,
           body: true,
@@ -107,12 +110,25 @@ export default async function StudentLessonPage({
       ? course.lessons[activeIndex + 1]
       : null;
 
+  // Self-healing: si el vídeo está subido pero la DB no tiene playbackId
+  // (webhook de Mux perdido), preguntamos a Mux aquí mismo. Si el asset ya
+  // está listo, se persiste y el alumno ve el vídeo en esta misma carga en
+  // vez de un "en preparación" eterno. Throttled por lección en mux-reconcile.
+  let activePlaybackId = active.muxPlaybackId;
+  if (active.type === "VIDEO" && !activePlaybackId) {
+    const r = await reconcileLessonVideo(active).catch((err) => {
+      console.error("[lesson page] mux reconcile falló:", err);
+      return null;
+    });
+    if (r?.status === "ready") activePlaybackId = r.playbackId;
+  }
+
   // Sign Mux tokens only for the active video lesson — keeps the page light
   // (one signing op instead of N) and the token short-lived. Returns null if
   // signing keys aren't configured; the player then plays without a token.
   const activeTokens =
-    active.type === "VIDEO" && active.muxPlaybackId
-      ? await signPlaybackTokens(active.muxPlaybackId)
+    active.type === "VIDEO" && activePlaybackId
+      ? await signPlaybackTokens(activePlaybackId)
       : null;
 
   // Load all progress rows for this user×course in one query — used for the
@@ -291,7 +307,7 @@ export default async function StudentLessonPage({
           </header>
 
           <LessonBody
-            lesson={active}
+            lesson={{ ...active, muxPlaybackId: activePlaybackId }}
             watermarkEmail={watermarkEmail}
             watermarkIp={watermarkIp}
             tokens={activeTokens}

@@ -80,7 +80,25 @@ Esto ya rompió los dos webhooks en producción (jul-2026): Stripe (71 entregas 
 - Toda URL de webhook debe llevar `www.`.
 - Al corregir uno, **editar el endpoint existente, no crear otro** → el signing secret no cambia y no hay que tocar Vercel.
 - Comprobación rápida: `curl -o /dev/null -w "%{http_code}\n" -X POST https://<host>/api/webhooks/<x> -d '{}'` → **308 = roto**; **400 = bien** (la app contesta, solo falta la firma).
-- Si un webhook de Mux se pierde y deja vídeos sin `muxPlaybackId`, reconciliar con `scripts/backfill-mux-playback.ts` (dry-run por defecto; ver cabecera del script).
+- Si un webhook de Mux se pierde y deja vídeos sin `muxPlaybackId`, reconciliar con `scripts/backfill-mux-playback.ts` (dry-run por defecto; ver cabecera del script). Desde sep-2026 la app se reconcilia sola (ver siguiente sección); el script queda como herramienta manual.
+
+## Mux: la app NO depende del webhook (reconciliación)
+
+Un webhook perdido dejaba la lección en "Vídeo en preparación" para siempre aunque el asset estuviera listo en Mux (pasó en jul-2026 y otra vez en sep-2026, con la URL ya en `www`). Desde sep-2026 el webhook es solo el camino rápido; `src/lib/mux-reconcile.ts` va a la API de Mux (fuente de la verdad) y persiste `muxAssetId`/`muxPlaybackId` desde cuatro puntos:
+
+| Punto | Cuándo | Qué hace |
+|---|---|---|
+| Página de lección del alumno | VIDEO con upload pero sin playbackId | `reconcileLessonVideo()` antes de firmar tokens: si Mux dice `ready`, el alumno ve el vídeo en esa misma carga. Throttle 15 s por lección. |
+| Admin `/admin/courses/[id]` | al cargar | `reconcilePendingVideos({ courseId })` sobre todas las pendientes del curso. |
+| Diálogo de subida (admin) | lección existente con upload sin playbackId | Polling cada 8 s vía server action `checkLessonVideo()`; rellena el playback ID en el formulario solo. |
+| Cron `/api/cron/mux-reconcile` | diario 05:30 UTC (`vercel.json`) | Barrido global. Requiere `CRON_SECRET` en Vercel (Production); sin ella responde 503. Plan Hobby solo permite crons diarios; en Pro puede subirse a horario. |
+
+Reglas que mantienen esto coherente:
+
+- **Resolver siempre desde `muxUploadId`**, no desde `muxAssetId`: al reemplazar un vídeo el uploadId es el nuevo; un assetId viejo devolvería el vídeo anterior.
+- **Upload nuevo resetea `muxAssetId` y `muxPlaybackId`** (`/api/mux/upload-url` y `updateLesson`).
+- **`updateLesson` no pisa `muxPlaybackId` con null** si el form llega vacío y el upload no ha cambiado (carrera "diálogo abierto mientras Mux termina").
+- Asset `errored` en Mux → se limpian los ids (igual que el webhook) para poder resubir.
 
 ## Autorización
 
@@ -201,6 +219,9 @@ Los ISPs españoles bloquean rangos de IP compartidos de Cloudflare durante las 
 | `src/lib/html.ts` | Sanitizer del editor TipTap |
 | `src/app/api/webhooks/stripe/route.ts` | Receptor de eventos Stripe |
 | `src/app/api/webhooks/mux/route.ts` | Receptor de eventos Mux |
+| `src/lib/mux-reconcile.ts` | Reconciliación upload→asset→playback contra la API de Mux (no depender del webhook) |
+| `src/app/api/cron/mux-reconcile/route.ts` | Cron diario (Vercel) que barre vídeos pendientes; auth por `CRON_SECRET` |
+| `vercel.json` | Definición de crons |
 | `src/app/api/checkout/route.ts` | Crear Checkout Session |
 | `src/proxy.ts` | Edge proxy: gating + CSP (Next 16; vivía como `middleware.ts`) |
 | `next.config.ts` | Cabeceras estáticas de seguridad (HSTS, etc.) |

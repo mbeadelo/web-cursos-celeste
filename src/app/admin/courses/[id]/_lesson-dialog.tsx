@@ -28,6 +28,7 @@ import {
   createLesson,
   updateLesson,
   requestPdfUploadUrl,
+  checkLessonVideo,
 } from "./_lessons-actions";
 
 type LessonType = "VIDEO" | "PDF" | "TEXT";
@@ -252,8 +253,13 @@ export function LessonDialog({
                   lessonId={isEdit ? lesson.id : undefined}
                   currentPlaybackId={muxPlaybackId ?? ""}
                   currentUploadId={muxUploadId ?? ""}
-                  onUploaded={(uploadId) =>
-                    setValue("muxUploadId", uploadId, { shouldDirty: true })
+                  onUploaded={(uploadId) => {
+                    setValue("muxUploadId", uploadId, { shouldDirty: true });
+                    // Upload nuevo → el playbackId anterior ya no vale.
+                    setValue("muxPlaybackId", "", { shouldDirty: true });
+                  }}
+                  onReady={(playbackId) =>
+                    setValue("muxPlaybackId", playbackId, { shouldDirty: true })
                   }
                 />
               ) : (
@@ -453,17 +459,61 @@ function VideoUpload({
   currentPlaybackId,
   currentUploadId,
   onUploaded,
+  onReady,
 }: {
   lessonId?: string;
   currentPlaybackId: string;
   currentUploadId: string;
   onUploaded: (uploadId: string) => void;
+  /** Mux terminó de procesar: el playbackId ya está persistido en la DB. */
+  onReady: (playbackId: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<
     "idle" | "signing" | "uploading" | "processing"
   >("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // Polling contra Mux mientras haya un upload sin playbackId. Solo posible
+  // con lección existente (la fila tiene que estar en la DB para persistir el
+  // resultado). Cubre tanto "acabo de subir" como "abro una lección que se
+  // quedó procesando": en ambos casos el playbackId aparece solo, sin
+  // depender del webhook de Mux ni de cerrar y reabrir el diálogo.
+  const shouldPoll = Boolean(lessonId && currentUploadId && !currentPlaybackId);
+  useEffect(() => {
+    if (!shouldPoll || !lessonId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const tick = async () => {
+      try {
+        const r = await checkLessonVideo(lessonId);
+        if (cancelled) return;
+        if (r.status === "ready") {
+          onReady(r.playbackId);
+          setProgress("idle");
+          return;
+        }
+        if (r.status === "errored") {
+          setError(`Mux no pudo procesar el vídeo: ${r.detail}`);
+          setProgress("idle");
+          return;
+        }
+      } catch {
+        // Fallo puntual de red/Mux: reintentar en el siguiente tick.
+      }
+      if (!cancelled) timer = setTimeout(tick, 8000);
+    };
+    void tick();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+    // onReady cambia de identidad en cada render del padre; no queremos
+    // reiniciar el polling por eso.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shouldPoll, lessonId]);
 
   async function onFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -554,8 +604,9 @@ function VideoUpload({
       </div>
       {progress === "processing" && (
         <p className="text-xs text-amber-700">
-          Mux está procesando el vídeo. Cierra el diálogo y vuelve a abrir
-          esta lección en unos minutos para ver el playback ID actualizado.
+          {lessonId
+            ? "Mux está procesando el vídeo. Puedes guardar ya: el playback ID se rellenará solo en cuanto termine."
+            : "Mux está procesando el vídeo. Guarda la lección: el playback ID se rellenará solo en cuanto termine (al abrir el curso o cuando un alumno entre)."}
         </p>
       )}
       {error && <p className="text-xs text-red-600">{error}</p>}

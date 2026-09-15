@@ -10,6 +10,27 @@ import {
   createUploadUrl,
 } from "@/lib/storage";
 import { sanitizeRichHtml } from "@/lib/html";
+import { reconcileLessonVideoById } from "@/lib/mux-reconcile";
+
+/**
+ * Estado del vídeo de una lección según Mux (fuente de la verdad). Lo usa el
+ * diálogo de subida para hacer polling tras subir un vídeo: cuando Mux termina
+ * de procesar, esto persiste el playbackId y lo devuelve, sin esperar al
+ * webhook.
+ */
+export async function checkLessonVideo(
+  lessonId: string
+): Promise<
+  | { status: "ready"; playbackId: string }
+  | { status: "processing" | "none" | "skipped" }
+  | { status: "errored"; detail: string }
+> {
+  await ensureAdmin();
+  const r = await reconcileLessonVideoById(lessonId, { force: true });
+  if (r.status === "ready") return { status: "ready", playbackId: r.playbackId };
+  if (r.status === "errored") return { status: "errored", detail: r.detail };
+  return { status: r.status };
+}
 
 type ActionResult =
   | { ok: true }
@@ -132,15 +153,31 @@ export async function updateLesson(
 
   const existing = await db.lesson.findUnique({
     where: { id: lessonId },
-    select: { courseId: true },
+    select: { courseId: true, muxUploadId: true, muxPlaybackId: true },
   });
   if (!existing) return { ok: false, error: "Lección no encontrada." };
 
   const data = mapInputToData(parsed.data);
+
+  // Vídeo: proteger el playbackId frente a la carrera "diálogo abierto
+  // mientras Mux termina". El formulario se abrió con playbackId vacío; si
+  // entre tanto el webhook/reconcile lo ha rellenado, guardar el formulario
+  // tal cual lo pisaría con null y el vídeo desaparecería para los alumnos.
+  //   - mismo upload y el form no trae playbackId → conservar el de la DB.
+  //   - upload nuevo (vídeo reemplazado) → resetear assetId para que la
+  //     reconciliación no rescate el asset del vídeo anterior.
+  const videoPatch =
+    data.type === "VIDEO"
+      ? data.muxUploadId === existing.muxUploadId
+        ? { muxPlaybackId: data.muxPlaybackId ?? existing.muxPlaybackId }
+        : { muxAssetId: null }
+      : {};
+
   await db.lesson.update({
     where: { id: lessonId },
     data: {
       ...data,
+      ...videoPatch,
       moduleId: await resolveModuleId(existing.courseId, data.moduleId),
     },
   });
