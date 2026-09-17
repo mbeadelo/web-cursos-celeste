@@ -1,7 +1,11 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 ---
@@ -185,7 +189,8 @@ Casi todo el texto público de la home es editable desde `/admin/contenido` sin 
 - **Tipos de campo**: `text` (input/textarea), `rich` (editor TipTap → HTML sanitizado con `src/lib/html.ts`), `image` (sube a R2 con URL firmada o pega URL; widget `src/app/admin/contenido/_image-field.tsx`). El sanitizado (`sanitizeRichHtml`) se aplica **al guardar**, no al renderizar, en los 3 puntos de escritura de HTML rich: artículos (`articulos/_actions.ts`), SiteContent rich (`contenido/_actions.ts`) y lecciones TEXT (`courses/[id]/_lessons-actions.ts`). Solo se sanitizan claves `rich`; los `text`/`image` se guardan literales.
 - **Lectura** (server-only, cacheado por petición): `getAllContent()` / `pickContent(map, key)` / `getContent(key)` en `src/lib/site-content.ts`. Si no hay fila en DB se usa el `default` de la clave.
 - **Guardado / reset**: server actions en `src/app/admin/contenido/_actions.ts` (`saveSiteContent`, `resetSiteContentKey`, `requestSiteImageUploadUrl`); `revalidatePath("/")` tras guardar. ⚠️ Vaciar un campo NO lo resetea (se ignora en el guardado); para volver al `default` hay que pulsar "Resetear" (borra la fila).
-- **Cobertura actual de la home**: Hero (badge, subtítulo, 3 botones), Cursos destacados (título, subtítulo), Sobre mí (etiqueta, título, cuerpo `rich`, imagen), Por qué esta plaza (etiqueta, título, 3 bloques), CTA final (título, texto, botón), Cifras. El `<h1>` "Bienvenido a tu plaza" del hero queda fijo (es la marca).
+- **Cobertura actual de la home**: Hero (badge, subtítulo, 3 botones), Cursos destacados (título, subtítulo), Sobre mí (etiqueta, título, cuerpo `rich`, imagen), Por qué esta plaza (etiqueta, título, 3 bloques), CTA final (título, texto, botón), Cifras, Testimonios (etiqueta, título y 6 huecos `home.testimonials.tN.{name,role,body}`).
+- **Testimonios**: componente `src/components/testimonials.tsx`. Un hueco se muestra solo si tiene nombre y texto; para ocultar uno con contenido se escribe `-` en el nombre (el guardado ignora campos vacíos). **La reseña 1 sale destacada** a todo el ancho; el resto en rejilla de 3. Sin estrellas (son agradecimientos, no valoraciones). Los `.body` se renderizan con `whitespace-pre-line`. El `<h1>` "Bienvenido a tu plaza" del hero queda fijo (es la marca).
 
 ## Marca y diseño
 

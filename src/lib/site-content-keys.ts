@@ -200,6 +200,154 @@ export const SITE_CONTENT_KEYS = {
       "No estás sola en esto. Pregunta cuando te atasques y resuelves dudas con la comunidad.",
   },
 
+  // ─── Home — Testimonios ───
+  // Hasta 6 reseñas. Una reseña se muestra solo si tiene nombre y texto.
+  // Para ocultar una que ya tiene contenido, escribe "-" en su nombre (el
+  // guardado ignora campos vacíos). Se leen en src/app/page.tsx.
+  "home.testimonials.eyebrow": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Etiqueta superior",
+    hint: "Texto pequeño en mayúsculas.",
+    default: "Testimonios",
+  },
+  "home.testimonials.title": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Título de la sección",
+    hint: "",
+    default: "Lo que cuentan quienes ya han pasado por aquí",
+  },
+  "home.testimonials.t1.name": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 1 — nombre",
+    hint: 'Nombre o nombre e inicial (p. ej. "María G."). Escribe "-" para ocultar esta reseña.',
+    default: "Sara",
+  },
+  "home.testimonials.t1.role": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 1 — etiqueta",
+    hint: 'Opcional. P. ej. "Aprobada 2026" o "Plaza en Primaria".',
+    default: "",
+  },
+  "home.testimonials.t1.body": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 1 — texto",
+    hint: "Texto de la reseña. Los saltos de línea se respetan.",
+    default:
+      "Como alumna, necesitaba una maestra como referente, y a ti, a trabajadora, no te gana nadie. Has hecho que mi cabeza hiciera el click que necesitaba. He cambiado muchísimo, y no solo en relación con las oposiciones.\n\n" +
+      "Todo ha sido gracias a que me has hecho creer que podía conseguirlo, has sabido acompañarme en el proceso, adaptarte a mí y ser siempre sincera conmigo, incluso cuando decirme lo que pensabas no era la opción fácil.\n\n" +
+      "Nunca hubiera pensado que sería capaz de llegar a hacer todo lo que he hecho, y menos en un año. Tienes razón: he convertido muchos muros en arena, pero no sola; por suerte, he contado contigo para poder hacerlo. Siempre te estaré agradecida.",
+  },
+  "home.testimonials.t2.name": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 2 — nombre",
+    hint: 'Nombre o nombre e inicial (p. ej. "María G."). Escribe "-" para ocultar esta reseña.',
+    default: "Cris",
+  },
+  "home.testimonials.t2.role": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 2 — etiqueta",
+    hint: 'Opcional. P. ej. "Aprobada 2026" o "Plaza en Primaria".',
+    default: "",
+  },
+  "home.testimonials.t2.body": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 2 — texto",
+    hint: "Texto de la reseña. Los saltos de línea se respetan.",
+    default: "Gracias por haberme acompañado durante todo este proceso, por confiar en mí incluso cuando yo no lo hacía, por empujarme cuando lo necesitaba y por sacar lo mejor de mí. Ya tenía claro que ibas a ser la mejor preparadora que podía elegir.",
+  },
+  "home.testimonials.t3.name": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 3 — nombre",
+    hint: 'Nombre o nombre e inicial (p. ej. "María G."). Escribe "-" para ocultar esta reseña.',
+    default: "Clara",
+  },
+  "home.testimonials.t3.role": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 3 — etiqueta",
+    hint: 'Opcional. P. ej. "Aprobada 2026" o "Plaza en Primaria".',
+    default: "",
+  },
+  "home.testimonials.t3.body": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 3 — texto",
+    hint: "Texto de la reseña. Los saltos de línea se respetan.",
+    default: "Me has enseñado que este proceso no tiene que ser traumático ni tan horrible como pensaba. Ojalá futuros alumnos de tu preparación puedan sentirse igual de acompañados que me he sentido yo durante este tiempo, y que aprendan todo con la seguridad con la que yo lo he aprendido.",
+  },
+  "home.testimonials.t4.name": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 4 — nombre",
+    hint: 'Nombre o nombre e inicial (p. ej. "María G."). Escribe "-" para ocultar esta reseña.',
+    default: "Mireia",
+  },
+  "home.testimonials.t4.role": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 4 — etiqueta",
+    hint: 'Opcional. P. ej. "Aprobada 2026" o "Plaza en Primaria".',
+    default: "",
+  },
+  "home.testimonials.t4.body": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 4 — texto",
+    hint: "Texto de la reseña. Los saltos de línea se respetan.",
+    default: "Gracias por confiar en mí, por guiarme y por sacar mi máximo potencial. Pero, sobre todo, por apoyarme y preocuparte por mí cada día, ayudándome en todo momento… porque sin ti no sería lo mismo. ¡Gracias! Qué suerte aprender de ti, eres increíble.",
+  },
+  "home.testimonials.t5.name": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 5 — nombre",
+    hint: 'Nombre o nombre e inicial (p. ej. "María G."). Escribe "-" para ocultar esta reseña.',
+    default: "",
+  },
+  "home.testimonials.t5.role": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 5 — etiqueta",
+    hint: 'Opcional. P. ej. "Aprobada 2026" o "Plaza en Primaria".',
+    default: "",
+  },
+  "home.testimonials.t5.body": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 5 — texto",
+    hint: "Texto de la reseña. Los saltos de línea se respetan.",
+    default: "",
+  },
+  "home.testimonials.t6.name": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 6 — nombre",
+    hint: 'Nombre o nombre e inicial (p. ej. "María G."). Escribe "-" para ocultar esta reseña.',
+    default: "",
+  },
+  "home.testimonials.t6.role": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 6 — etiqueta",
+    hint: 'Opcional. P. ej. "Aprobada 2026" o "Plaza en Primaria".',
+    default: "",
+  },
+  "home.testimonials.t6.body": {
+    type: "text",
+    section: "Home — Testimonios",
+    label: "Reseña 6 — texto",
+    hint: "Texto de la reseña. Los saltos de línea se respetan.",
+    default: "",
+  },
+
   // ─── Home — CTA final ───
   "home.cta.title": {
     type: "text",

@@ -86,11 +86,11 @@ export function SiteContentForm({ values, hasOverride, storageEnabled }: Props) 
                   )}
                 </div>
                 {meta.type === "text" ? (
-                  (values[key] ?? "").length > 80 ? (
+                  (values[key] ?? "").length > 80 || key.endsWith(".body") ? (
                     <Textarea
                       id={key}
                       name={key}
-                      rows={3}
+                      rows={key.endsWith(".body") ? 5 : 3}
                       defaultValue={values[key] ?? ""}
                     />
                   ) : (

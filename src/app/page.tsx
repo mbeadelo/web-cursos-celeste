@@ -4,6 +4,11 @@ import { PublicHeader } from "@/components/public-header";
 import { PublicFooter } from "@/components/public-footer";
 import { FeaturedCourses } from "@/components/featured-courses";
 import { AboutMe } from "@/components/about-me";
+import {
+  Testimonials,
+  TESTIMONIAL_SLOTS,
+  type Testimonial,
+} from "@/components/testimonials";
 import { getAllContent, pickContent } from "@/lib/site-content";
 import { proxiedImageSrc } from "@/lib/public-image";
 import {
@@ -22,6 +27,13 @@ export default async function Home() {
   const heroCtaDashboard = pickContent(content, "home.hero.cta_dashboard");
   const featuredTitle = pickContent(content, "home.featured.title");
   const featuredSubtitle = pickContent(content, "home.featured.subtitle");
+  const testimonialsEyebrow = pickContent(content, "home.testimonials.eyebrow");
+  const testimonialsTitle = pickContent(content, "home.testimonials.title");
+  const testimonials: Testimonial[] = TESTIMONIAL_SLOTS.map((n) => ({
+    name: pickContent(content, `home.testimonials.t${n}.name`),
+    role: pickContent(content, `home.testimonials.t${n}.role`),
+    body: pickContent(content, `home.testimonials.t${n}.body`),
+  }));
   const ctaTitle = pickContent(content, "home.cta.title");
   const ctaBody = pickContent(content, "home.cta.body");
   const ctaButton = pickContent(content, "home.cta.button");
@@ -188,36 +200,11 @@ export default async function Home() {
         {/* ── Testimonios + CTA (degradado celeste compartido, full-width) ── */}
         <section className="bg-gradient-to-b from-white via-brand-celeste/5 to-brand-celeste/10 border-y border-neutral-200">
           <div className="max-w-5xl mx-auto px-6 py-20 space-y-16">
-            {/* Testimonios (DEMO — quitar cuando haya reseñas reales) */}
-            <div className="space-y-10">
-              <div className="text-center space-y-3">
-                <p className="text-xs uppercase tracking-[0.2em] text-brand-magenta-deep font-semibold">
-                  Testimonios
-                </p>
-                <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-                  Lo que cuentan quienes ya están dentro
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {DEMO_TESTIMONIOS.map((t, i) => (
-                  <figure
-                    key={i}
-                    className="rounded-2xl bg-white ring-1 ring-foreground/10 p-6 space-y-4 shadow-sm"
-                  >
-                    <div className="text-brand-amber text-sm tracking-widest" aria-hidden>
-                      ★★★★★
-                    </div>
-                    <blockquote className="text-sm text-neutral-700 leading-relaxed">
-                      “{t.body}”
-                    </blockquote>
-                    <figcaption className="text-sm font-semibold">
-                      {t.name}{" "}
-                      <span className="text-neutral-500 font-normal">· {t.role}</span>
-                    </figcaption>
-                  </figure>
-                ))}
-              </div>
-            </div>
+            <Testimonials
+              eyebrow={testimonialsEyebrow}
+              title={testimonialsTitle}
+              items={testimonials}
+            />
 
             {/* CTA "Empezamos" — plano sobre el degradado, sin recuadro */}
             <div className="text-center space-y-6 max-w-2xl mx-auto">
@@ -255,26 +242,6 @@ function Stat({ number, label }: { number: string; label: string }) {
     </div>
   );
 }
-
-// DEMO — testimonios de ejemplo para maquetar la sección. Quitar este array y
-// la sección "Testimonios" del JSX cuando haya reseñas reales de alumnas.
-const DEMO_TESTIMONIOS = [
-  {
-    name: "María G.",
-    role: "Aprobada 2024",
-    body: "El acompañamiento marcó la diferencia. Llegué al examen con un método claro y seguridad, no a ciegas como otras veces.",
-  },
-  {
-    name: "Laura M.",
-    role: "Plaza en su 2ª convocatoria",
-    body: "Las situaciones de aprendizaje se me hacían un mundo. Con las sesiones lo entendí y dejé de bloquearme.",
-  },
-  {
-    name: "Sergio P.",
-    role: "Opositor",
-    body: "Material actualizado y al grano. Estudiar a mi ritmo con los vídeos y PDFs me dejó compaginarlo con el trabajo.",
-  },
-];
 
 const FEATURE_TONES = {
   celeste: { dot: "bg-brand-celeste", ring: "hover:ring-brand-celeste/50" },
