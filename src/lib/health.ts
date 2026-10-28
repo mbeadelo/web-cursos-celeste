@@ -1,7 +1,7 @@
 import "server-only";
-import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
 import { db } from "@/lib/db";
+import { bumpBucket } from "@/lib/rate-limit";
 import { env } from "@/lib/env";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import {
@@ -99,7 +99,7 @@ export async function runHealthChecks(): Promise<HealthReport> {
     run("mux-pending", "Mux: vídeos atascados", checkMuxPending),
     run("r2", "Cloudflare R2", checkStorage),
     run("resend", "Resend: dominio de envío", checkResend),
-    run("upstash", "Upstash: rate limiting", checkUpstash),
+    run("rate-limit", "Rate limiting (contadores en Postgres)", checkRateLimit),
     run("cron", "Cron de Vercel", checkCronSecret),
   ]);
   return {
@@ -335,45 +335,20 @@ async function checkResend(): Promise<CheckBody> {
   return { status: "ok", summary: `Clave válida, ${fromDomain} verificado` };
 }
 
-async function checkUpstash(): Promise<CheckBody> {
-  if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
-    return {
-      status: "warn",
-      summary: "Sin Upstash: login, checkout y chat van sin rate limiting",
-    };
+async function checkRateLimit(): Promise<CheckBody> {
+  // Mismo camino que usan /login, /api/checkout y /api/chat: un UPSERT en
+  // RateLimitBucket. Si esto falla, los limiters están en fail-open.
+  const key = `health:probe:${Math.floor(Date.now() / 60_000)}`;
+  const count = await bumpBucket(key, new Date(Date.now() + 2 * 60_000));
+  if (!Number.isFinite(count) || count < 1) {
+    return { status: "fail", summary: `El contador devolvió ${String(count)}` };
   }
-  const host = safeHost(env.UPSTASH_REDIS_REST_URL);
-  const redis = new Redis({
-    url: env.UPSTASH_REDIS_REST_URL,
-    token: env.UPSTASH_REDIS_REST_TOKEN,
-  });
-  let pong: unknown;
-  try {
-    pong = await redis.ping();
-  } catch (err) {
-    // "fetch failed" a secas no dice nada: sacamos la causa de red (ENOTFOUND =
-    // el host no existe → base borrada o archivada; ECONNREFUSED/ETIMEDOUT =
-    // red) y el host, para poder contrastarlo con la consola de Upstash.
-    const cause = (err as { cause?: { code?: string; message?: string } }).cause;
-    const reason = cause?.code ?? cause?.message ?? (err instanceof Error ? err.message : String(err));
-    return {
-      status: "fail",
-      summary: `No se puede contactar con Upstash (${reason})`,
-      detail: `Host: ${host}. Si es ENOTFOUND, la base ya no existe o está archivada: revisar en console.upstash.com y, si hay base nueva, actualizar UPSTASH_REDIS_REST_URL/_TOKEN en Vercel + redeploy. Mientras tanto el rate limiting va en fail-open (todo pasa).`,
-    };
-  }
-  if (pong !== "PONG") {
-    return { status: "fail", summary: `Redis responde "${String(pong)}" en vez de PONG` };
-  }
-  return { status: "ok", summary: `Redis responde (${host})` };
-}
-
-function safeHost(url: string): string {
-  try {
-    return new URL(url).host;
-  } catch {
-    return url;
-  }
+  const buckets = await db.rateLimitBucket.count();
+  return {
+    status: "ok",
+    summary: "Contadores operativos (sin dependencia externa)",
+    detail: `${buckets} ventana(s) activas en la tabla`,
+  };
 }
 
 async function checkCronSecret(): Promise<CheckBody> {

@@ -17,7 +17,7 @@ import { getAllContent, pickContent } from "@/lib/site-content";
  *   make clear it's an AI assistant and not the real teacher.
  *
  * No-op without ANTHROPIC_API_KEY: `isChatbotConfigured()` is false and the
- * widget never renders, mirroring how Mux/R2/Upstash degrade.
+ * widget never renders, mirroring how Mux/R2 degrade.
  */
 
 export const CHATBOT_MODEL = "claude-haiku-4-5";

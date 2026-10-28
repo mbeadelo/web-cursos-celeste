@@ -1,77 +1,86 @@
 import "server-only";
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
-import { env } from "@/lib/env";
+import { db } from "@/lib/db";
 import { reportOps } from "@/lib/ops";
 
 /**
- * Rate limiting via Upstash Redis. Optional — if `UPSTASH_REDIS_REST_URL` /
- * `UPSTASH_REDIS_REST_TOKEN` are unset, every check returns `{ success: true }`
- * so dev/test environments work without provisioning Redis. In production
- * those vars MUST be set, otherwise abuse of magic links and checkout is
- * possible.
+ * Rate limiting sobre Postgres (tabla `RateLimitBucket`), sin servicios
+ * externos.
  *
- * Set up:
- *   1. Create a free Upstash Redis database (https://console.upstash.com).
- *   2. Copy REST URL + REST token to env vars.
- *   3. Add the same vars to Vercel.
+ * Historia: hasta oct-2026 los contadores vivían en Upstash Redis (plan free).
+ * Upstash archiva/borra la base tras ~30 días sin tráfico, y eso pasó TRES
+ * veces (jul, sep y oct-2026), dejando el rate limiting en fail-open sin que
+ * nadie se enterase. La web ya habla con Neon en cada petición, así que los
+ * contadores viven ahí: nadie los archiva y no hay credenciales que caduquen.
+ *
+ * Algoritmo: ventana fija. La clave es `${prefix}:${id}:${inicioVentana}`;
+ * cada petición hace un UPSERT atómico (`count + 1`) y se compara con el tope.
+ * Es algo menos fino que la ventana deslizante de Upstash (en el borde de dos
+ * ventanas se puede llegar a ~2× el tope en un instante), pero más que
+ * suficiente para lo que protege: spam de enlaces mágicos, bucles contra
+ * checkout y gasto del chatbot. Las filas caducadas las purga el cron de
+ * /api/cron/health.
+ *
+ * Fail-open: si la DB falla, la petición pasa (un limiter caído no puede
+ * bloquear compras) y queda un WARN en /admin/salud.
  */
 
-let _redis: Redis | null = null;
-function redis(): Redis | null {
-  if (_redis) return _redis;
-  if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) return null;
-  try {
-    _redis = new Redis({
-      url: env.UPSTASH_REDIS_REST_URL,
-      token: env.UPSTASH_REDIS_REST_TOKEN,
-    });
-  } catch (err) {
-    console.error("[rate-limit] cliente Redis no construible, sin limiter:", err);
-    return null;
-  }
-  return _redis;
+type Window = `${number} ${"s" | "m" | "h" | "d"}`;
+
+const UNIT_MS = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 } as const;
+
+export function windowToMs(window: Window): number {
+  const [n, unit] = window.split(" ") as [string, keyof typeof UNIT_MS];
+  return Number(n) * UNIT_MS[unit];
 }
 
-type Limiter = {
-  limit: (key: string) => Promise<{ success: boolean; reset: number }>;
+export type LimitResult = {
+  success: boolean;
+  /** Timestamp (ms) en que se abre la siguiente ventana. */
+  reset: number;
+  remaining: number;
 };
 
-function makeLimiter(prefix: string, tokens: number, window: string): Limiter {
-  const r = redis();
-  if (!r) {
-    return {
-      async limit() {
-        return { success: true, reset: 0 };
-      },
-    };
-  }
-  const rl = new Ratelimit({
-    redis: r,
-    limiter: Ratelimit.slidingWindow(tokens, window as `${number} ${"s" | "m" | "h" | "d"}`),
-    analytics: false,
-    prefix: `rl:${prefix}`,
-  });
+type Limiter = {
+  limit: (id: string) => Promise<LimitResult>;
+};
+
+/**
+ * Incrementa el contador de `key` para la ventana actual y devuelve el valor
+ * resultante. Un solo round-trip, atómico (ON CONFLICT en la PK).
+ */
+export async function bumpBucket(key: string, expiresAt: Date): Promise<number> {
+  const rows = await db.$queryRaw<Array<{ count: number }>>`
+    INSERT INTO "RateLimitBucket" ("key", "count", "expiresAt")
+    VALUES (${key}, 1, ${expiresAt})
+    ON CONFLICT ("key") DO UPDATE SET "count" = "RateLimitBucket"."count" + 1
+    RETURNING "count"
+  `;
+  return rows[0]?.count ?? 1;
+}
+
+function makeLimiter(prefix: string, tokens: number, window: Window): Limiter {
+  const windowMs = windowToMs(window);
   return {
-    async limit(key: string) {
-      // Fail-open: si Redis no responde (credenciales rotas, base borrada,
-      // caída de Upstash), dejamos pasar la petición en vez de tumbar el
-      // endpoint con un 500 — un limiter caído no puede bloquear compras.
-      // El error queda en los logs de Vercel para detectarlo.
+    async limit(id: string) {
+      const now = Date.now();
+      const windowStart = Math.floor(now / windowMs) * windowMs;
+      const reset = windowStart + windowMs;
+      const key = `${prefix}:${id}:${windowStart}`;
       try {
-        const res = await rl.limit(key);
-        return { success: res.success, reset: res.reset };
+        const count = await bumpBucket(key, new Date(reset));
+        return {
+          success: count <= tokens,
+          reset,
+          remaining: Math.max(0, tokens - count),
+        };
       } catch (err) {
-        // Queda en /admin/salud como aviso: un limiter caído de forma
-        // persistente suele significar base de Upstash archivada o
-        // credenciales rotas (incidente de sep-2026).
         await reportOps({
           level: "WARN",
           area: "rate-limit",
           message: `El limiter "${prefix}" falló (fail-open, petición permitida)`,
           error: err,
         });
-        return { success: true, reset: 0 };
+        return { success: true, reset, remaining: tokens };
       }
     },
   };

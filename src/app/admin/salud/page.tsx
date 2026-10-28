@@ -95,7 +95,7 @@ export default async function AdminHealthPage() {
           <div>
             <h1 className="text-2xl font-semibold">Salud de la web</h1>
             <p className="text-sm text-neutral-600 mt-1">
-              Comprobaciones reales contra Stripe, Mux, R2, Resend, Upstash y
+              Comprobaciones reales contra Stripe, Mux, R2, Resend y
               la base de datos, más las incidencias que la propia app detecta.
               Comprobado a las {dateTime.format(report.ranAt)}.
             </p>

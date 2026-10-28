@@ -426,3 +426,15 @@ model CheckoutAttempt {
   @@index([createdAt])
   @@index([courseId])
 }
+
+// Contadores del rate limiting (ventana fija) — ver src/lib/rate-limit.ts.
+// Sustituye a Upstash Redis (oct-2026): la base free se archivaba por
+// inactividad. `key` = prefijo:id:inicioVentana; el cron de salud purga las
+// filas con expiresAt pasado.
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(1)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}

@@ -120,7 +120,7 @@ Sistema de detección de fallos que **no depende de Sentry ni de Vercel** (cread
 
 1. **Incidencias** (`OpsEvent`, `src/lib/ops.ts`). `reportOps({ level, area, message, detail?, error? })` es el único punto de entrada y **nunca lanza**. Agrupa repeticiones (misma `area`+`message` en 24 h → `count++`), y las de nivel `ERROR` mandan **email** a `OPS_ALERT_EMAILS` (o `ADMIN_EMAIL` si no está definida) como mucho una vez cada 6 h por incidencia. Sentry recibe copia de los ERROR si está configurado, como sumidero secundario. Regla: `message` estable (sin ids), lo variable en `detail`. Ya instrumentado en: `/api/checkout`, `/checkout/success`, webhooks de Stripe y Mux, `stripe-provision.ts` (early-returns y email de bienvenida), `rate-limit.ts` (fail-open → WARN) y `instrumentation.ts` → `onRequestError` (cualquier error no controlado del servidor, área `server`).
 2. **Intentos de pago** (`CheckoutAttempt`). Cada POST a `/api/checkout` deja fila: `CREATED` con `stripeSessionId` si Stripe devolvió sesión, `FAILED` con el error si no. `provisionCheckoutSession` rellena `completedAt`. El funnel de `/admin/salud` separa "falló al iniciar" (bug/config nuestro, genera incidencia) de "sin terminar en Stripe" (abandono/tarjeta rechazada). Si falla la creación de sesión, el alumno vuelve a `/cursos/<slug>?pago=error` con un aviso visible, no a un 500.
-3. **Chequeos activos** (`src/lib/health.ts`, `runHealthChecks()`): van a cada proveedor y comprueban lo que de verdad hace falta para vender: DB, clave Stripe y modo live, endpoint de webhook de Stripe (URL **www** exacta, activo, con los 5 eventos requeridos), Stripe Tax activo, POST sin firma a `/api/webhooks/{stripe,mux}` devuelve 400 (un 3xx = apex, un 503 = falta secret), API de Mux + signing + webhook secret, vídeos atascados >2 h, bucket R2, dominio de `EMAIL_FROM` verificado en Resend, `PING` a Upstash, `CRON_SECRET`. Los ejecuta `/admin/salud` en cada carga y el cron `/api/cron/health` (diario 07:00 UTC en `vercel.json`): cada `fail` → incidencia ERROR (email), cada `warn` → WARN. El cron también purga incidencias resueltas >90 d e intentos >180 d.
+3. **Chequeos activos** (`src/lib/health.ts`, `runHealthChecks()`): van a cada proveedor y comprueban lo que de verdad hace falta para vender: DB, clave Stripe y modo live, endpoint de webhook de Stripe (URL **www** exacta, activo, con los 5 eventos requeridos), Stripe Tax activo, POST sin firma a `/api/webhooks/{stripe,mux}` devuelve 400 (un 3xx = apex, un 503 = falta secret), API de Mux + signing + webhook secret, vídeos atascados >2 h, bucket R2, dominio de `EMAIL_FROM` verificado en Resend (con clave de solo envío se da por OK), contadores de rate limiting en Postgres, `CRON_SECRET`. Los ejecuta `/admin/salud` en cada carga y el cron `/api/cron/health` (diario 07:00 UTC en `vercel.json`): cada `fail` → incidencia ERROR (email), cada `warn` → WARN. El cron también purga incidencias resueltas >90 d e intentos >180 d.
 
 Para verificar el circuito de email: botón "Probar email de alerta" en `/admin/salud`. Para añadir un chequeo nuevo: una función `check*()` en `health.ts` y su `run(...)` en `runHealthChecks()`.
 
@@ -144,8 +144,9 @@ Para verificar el circuito de email: botón "Probar email de alerta" en `/admin/
 
 ## Rate limiting
 
-- Magic link (`/login`) y `/api/checkout` van rate-limited contra Upstash Redis (`src/lib/rate-limit.ts`).
-- **Sin `UPSTASH_REDIS_REST_URL`/`_TOKEN` definidos**, los limiters son **no-op** silenciosos. Esto permite dev/test sin Redis. En producción **deben** estar definidos.
+- `/login` (magic link), `/api/checkout` y `/api/chat` van rate-limited con contadores **en Postgres** (tabla `RateLimitBucket`, ventana fija, `src/lib/rate-limit.ts`). **Sin servicios externos ni variables de entorno**: funciona igual en local, preview y producción.
+- Historia: hasta oct-2026 era Upstash Redis (free). Upstash archivaba/borraba la base tras ~30 días sin tráfico y pasó **tres veces** (jul, sep, oct-2026), dejando los límites en fail-open sin aviso. Por eso se retiró: una dependencia menos y nada que caduque.
+- Fail-open: si la DB falla, la petición pasa y queda un WARN en `/admin/salud`. Las ventanas caducadas las purga el cron `/api/cron/health`.
 
 ## Mux signed playback
 
@@ -236,7 +237,7 @@ Los ISPs españoles bloquean rangos de IP compartidos de Cloudflare durante las 
 | `src/lib/mux.ts` | Cliente Mux + `signPlaybackTokens()` para signed playback |
 | `src/lib/storage.ts` | URLs firmadas de R2 (PDFs / covers) |
 | `src/lib/access.ts` | Helpers de autorización (`canAccessLesson`, `canAccessCourse`) |
-| `src/lib/rate-limit.ts` | Rate limiters Upstash (no-op sin keys) |
+| `src/lib/rate-limit.ts` | Rate limiters sobre Postgres (`RateLimitBucket`, ventana fija, fail-open) |
 | `src/lib/progress.ts` | Server actions de `LessonProgress` |
 | `src/lib/reviews.ts` | Server actions de `Review` (alumno + admin) |
 | `src/lib/json-ld.ts` | Builders schema.org/Course y Article |
