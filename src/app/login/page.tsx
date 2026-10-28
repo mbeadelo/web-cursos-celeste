@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { signIn, auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
+import { isPinnedAdmin } from "@/lib/admins";
 import {
   loginEmailLimiter,
   loginIpLimiter,
@@ -34,12 +34,13 @@ async function loginAction(formData: FormData) {
   }
 
   // Closed registration: only emails already in the User table can sign in.
-  // The admin email is always allowed as a recovery path in case the DB is wiped.
+  // Pinned admins (ADMIN_EMAIL + ADMIN_EMAILS) are always allowed as a recovery
+  // path in case the DB is wiped; auth.ts creates their row as ADMIN.
   const existing = await db.user.findUnique({
     where: { email },
     select: { id: true },
   });
-  if (!existing && email !== env.ADMIN_EMAIL.toLowerCase()) {
+  if (!existing && !isPinnedAdmin(email)) {
     redirect("/login?error=not-registered");
   }
 

@@ -5,26 +5,30 @@ import type { Adapter, AdapterUser } from "next-auth/adapters";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { authConfig } from "@/lib/auth.config";
+import { isPinnedAdmin } from "@/lib/admins";
 
 // Closed registration: a User row must exist before any sign-in flow can
 // create a session for that email. Sign-up happens out-of-band via:
 //   - Stripe webhook (post-purchase) — creates User + Enrollment
 //   - Admin manual enrollment             — creates User + Enrollment
 // We wrap PrismaAdapter to block automatic user creation that Auth.js would
-// otherwise do on first magic-link verification. The bootstrap admin email is
-// allowed as a recovery path in case the DB is wiped.
+// otherwise do on first magic-link verification. The pinned admins
+// (ADMIN_EMAIL + ADMIN_EMAILS, see src/lib/admins.ts) are allowed as a
+// recovery path in case the DB is wiped, and are created directly as ADMIN.
 const baseAdapter = PrismaAdapter(db);
 
 const lockedAdapter: Adapter = {
   ...baseAdapter,
   async createUser(user: AdapterUser) {
     const email = user.email?.toLowerCase() ?? "";
-    if (email !== env.ADMIN_EMAIL.toLowerCase()) {
+    if (!isPinnedAdmin(email)) {
       throw new Error(
         `Registration is closed. Email ${email} must be pre-provisioned.`
       );
     }
-    return baseAdapter.createUser!(user);
+    // PrismaAdapter passes the object straight to `user.create({ data })`, so
+    // the extra `role` lands in the row. AdapterUser doesn't type it.
+    return baseAdapter.createUser!({ ...user, email, role: "ADMIN" } as AdapterUser);
   },
 };
 
@@ -47,7 +51,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // magic link or creating a session.
       const email = user?.email?.toLowerCase();
       if (!email) return false;
-      if (email === env.ADMIN_EMAIL.toLowerCase()) return true;
+      if (isPinnedAdmin(email)) return true;
       const existing = await db.user.findUnique({
         where: { email },
         select: { id: true },
@@ -59,7 +63,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        // Pinned admin whose DB row says otherwise (seed never run, role
+        // edited by hand…): repair the row so DB and token agree.
+        if (isPinnedAdmin(user.email) && user.role !== "ADMIN" && user.id) {
+          await db.user
+            .update({ where: { id: user.id }, data: { role: "ADMIN" } })
+            .catch(() => {});
+        }
       }
+      // Pinned admins are ADMIN on every request, whatever the DB says.
+      if (isPinnedAdmin(token.email)) token.role = "ADMIN";
       // On explicit refresh (e.g. after role change), reload from DB.
       if (trigger === "update" && token.id) {
         const fresh = await db.user.findUnique({
