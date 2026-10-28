@@ -296,6 +296,17 @@ async function checkResend(): Promise<CheckBody> {
   const resend = new Resend(env.RESEND_API_KEY);
   const res = await resend.domains.list();
   if (res.error) {
+    // Una clave con permiso "Sending access" (lo recomendable en producción)
+    // no puede listar dominios, pero sí enviar: eso no es un fallo. La prueba
+    // real del envío es el botón "Probar email de alerta".
+    if (/restricted to only send/i.test(res.error.message)) {
+      return {
+        status: "ok",
+        summary: "Clave válida (permiso solo envío)",
+        detail:
+          "Con esta clave no se puede comprobar el estado del dominio; usa «Probar email de alerta» para verificar el envío.",
+      };
+    }
     return {
       status: "fail",
       summary: "La API de Resend rechaza la clave",
@@ -331,15 +342,38 @@ async function checkUpstash(): Promise<CheckBody> {
       summary: "Sin Upstash: login, checkout y chat van sin rate limiting",
     };
   }
+  const host = safeHost(env.UPSTASH_REDIS_REST_URL);
   const redis = new Redis({
     url: env.UPSTASH_REDIS_REST_URL,
     token: env.UPSTASH_REDIS_REST_TOKEN,
   });
-  const pong = await redis.ping();
-  if (pong !== "PONG") {
-    return { status: "fail", summary: `Redis responde "${pong}" en vez de PONG` };
+  let pong: unknown;
+  try {
+    pong = await redis.ping();
+  } catch (err) {
+    // "fetch failed" a secas no dice nada: sacamos la causa de red (ENOTFOUND =
+    // el host no existe → base borrada o archivada; ECONNREFUSED/ETIMEDOUT =
+    // red) y el host, para poder contrastarlo con la consola de Upstash.
+    const cause = (err as { cause?: { code?: string; message?: string } }).cause;
+    const reason = cause?.code ?? cause?.message ?? (err instanceof Error ? err.message : String(err));
+    return {
+      status: "fail",
+      summary: `No se puede contactar con Upstash (${reason})`,
+      detail: `Host: ${host}. Si es ENOTFOUND, la base ya no existe o está archivada: revisar en console.upstash.com y, si hay base nueva, actualizar UPSTASH_REDIS_REST_URL/_TOKEN en Vercel + redeploy. Mientras tanto el rate limiting va en fail-open (todo pasa).`,
+    };
   }
-  return { status: "ok", summary: "Redis responde (la base no está archivada)" };
+  if (pong !== "PONG") {
+    return { status: "fail", summary: `Redis responde "${String(pong)}" en vez de PONG` };
+  }
+  return { status: "ok", summary: `Redis responde (${host})` };
+}
+
+function safeHost(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
 }
 
 async function checkCronSecret(): Promise<CheckBody> {
