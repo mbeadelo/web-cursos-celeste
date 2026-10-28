@@ -15,7 +15,16 @@ export const authConfig = {
     signIn: "/login",
     verifyRequest: "/login/verify",
   },
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    // Sesión "que no caduca" en la práctica: 1 año, y cada visita con más de
+    // 24 h desde la última renovación vuelve a emitir cookie + JWT por otro
+    // año. Solo pide enlace nuevo si se pasa un año sin entrar, se borran las
+    // cookies o se entra desde otro navegador/dispositivo. (Los navegadores
+    // limitan las cookies a 400 días, así que más de un año no aporta nada.)
+    maxAge: 365 * 24 * 60 * 60,
+    updateAge: 24 * 60 * 60,
+  },
   // Providers configured in the full config (auth.ts) where env is validated.
   providers: [],
   callbacks: {
