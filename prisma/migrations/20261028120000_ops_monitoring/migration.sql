@@ -53,14 +53,3 @@ CREATE INDEX "CheckoutAttempt_courseId_idx" ON "CheckoutAttempt"("courseId");
 
 -- AddForeignKey
 ALTER TABLE "CheckoutAttempt" ADD CONSTRAINT "CheckoutAttempt_courseId_fkey" FOREIGN KEY ("courseId") REFERENCES "Course"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-┌─────────────────────────────────────────────────────────┐
-│  Update available 7.8.0 -> 8.0.0-rc.28                  │
-│                                                         │
-│  This is a major update - please follow the guide at    │
-│  https://pris.ly/d/major-version-upgrade                │
-│                                                         │
-│  Run the following to update                            │
-│    npm i --save-dev prisma@latest                       │
-│    npm i @prisma/client@latest                          │
-└─────────────────────────────────────────────────────────┘
-
