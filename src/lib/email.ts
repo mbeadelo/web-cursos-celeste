@@ -139,3 +139,65 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+/** Destinatarios de las alertas técnicas: OPS_ALERT_EMAILS o, si no, ADMIN_EMAIL. */
+export function opsAlertRecipients(): string[] {
+  const raw = env.OPS_ALERT_EMAILS?.trim() ? env.OPS_ALERT_EMAILS : env.ADMIN_EMAIL;
+  return Array.from(
+    new Set(
+      raw
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => e.includes("@"))
+    )
+  );
+}
+
+/**
+ * Email de alerta técnica (sistema propio de monitorización, ver
+ * src/lib/ops.ts). Texto plano dentro de un shell mínimo: lo importante es
+ * que llegue y se lea en el móvil, no que sea bonito. No pasa por
+ * SiteContent a propósito: no debe depender de la DB.
+ */
+export async function sendOpsAlertEmail(opts: {
+  area: string;
+  message: string;
+  detail: Record<string, unknown>;
+  count: number;
+  eventId: string | null;
+}): Promise<void> {
+  const to = opsAlertRecipients();
+  if (to.length === 0) return;
+
+  const saludUrl = `${SITE_URL}/admin/salud`;
+  const detailJson = escapeHtml(JSON.stringify(opts.detail, null, 2)).slice(
+    0,
+    6000
+  );
+  const repeated =
+    opts.count > 1
+      ? ` (repetida ${opts.count} veces en las últimas 24 h)`
+      : "";
+
+  const html = `<!doctype html>
+<html lang="es"><body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;padding:24px;background:#f8fafc">
+  <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:12px;padding:24px;border:1px solid #e2e8f0">
+    <p style="margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#b91c1c;font-weight:600">Alerta · ${escapeHtml(opts.area)}</p>
+    <h1 style="margin:0 0 12px;font-size:20px">${escapeHtml(opts.message)}</h1>
+    <p style="margin:0 0 16px;color:#334155;font-size:14px">Detectado por la propia web${repeated}. Revísalo en
+      <a href="${saludUrl}" style="color:#0284c7">${saludUrl}</a>.</p>
+    <pre style="background:#0f172a;color:#e2e8f0;padding:16px;border-radius:8px;font-size:12px;white-space:pre-wrap;word-break:break-word;margin:0">${detailJson}</pre>
+    ${opts.eventId ? `<p style="margin:16px 0 0;color:#94a3b8;font-size:11px">Incidencia ${escapeHtml(opts.eventId)}</p>` : ""}
+  </div>
+</body></html>`;
+
+  const result = await getResend().emails.send({
+    from: env.EMAIL_FROM,
+    to,
+    subject: `⚠️ [tu plaza] ${opts.area}: ${opts.message}`.slice(0, 180),
+    html,
+  });
+  if (result.error) {
+    throw new Error(`No se pudo enviar la alerta: ${result.error.message}`);
+  }
+}

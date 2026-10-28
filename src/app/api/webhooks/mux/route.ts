@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isMuxConfigured } from "@/lib/mux";
 import { env } from "@/lib/env";
+import { reportOps } from "@/lib/ops";
 import crypto from "node:crypto";
 
 export const runtime = "nodejs";
@@ -66,7 +67,12 @@ export async function POST(req: Request) {
         break;
     }
   } catch (err) {
-    console.error(`[mux webhook] error handling ${event.type}:`, err);
+    await reportOps({
+      level: "ERROR",
+      area: "mux-webhook",
+      message: `Falló el procesado del evento ${event.type ?? "(sin type)"}`,
+      error: err,
+    });
     // Always 200 — Mux retries forever on non-2xx and we don't have an
     // idempotency table for Mux yet (events are infrequent and the field
     // updates are idempotent anyway).
@@ -167,10 +173,12 @@ async function handleAssetErrored(
   // Mux asset failed to encode. Clear the Lesson's Mux ids so the admin sees
   // the lesson as "no video yet" and can re-upload. The original error
   // surfaces in Vercel logs (and Sentry once configured).
-  console.error(
-    "[mux webhook] video.asset.errored",
-    JSON.stringify({ assetId, passthrough, errors })
-  );
+  await reportOps({
+    level: "ERROR",
+    area: "mux-webhook",
+    message: "Mux no pudo procesar un vídeo (asset errored): hay que resubirlo",
+    detail: { assetId, passthrough, errors },
+  });
 
   if (assetId) {
     const updated = await db.lesson

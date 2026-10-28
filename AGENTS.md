@@ -112,7 +112,17 @@ Mismo principio. `src/lib/stripe-provision.ts` (`provisionCheckoutSession`) crea
 - El webhook `checkout.session.completed` / `checkout.session.async_payment_succeeded` (camino rápido).
 - La página `/checkout/success`, que recupera la sesión por `session_id` y provisiona si Stripe la da por `complete` y pagada. Si el webhook ya pasó, no hace nada.
 
-Idempotencia: `Order` se crea con `create`; un P2002 = ya provisionado (no se repite el email). Enrollment y Subscription se upsertean siempre para curar provisiones a medias. `payment_status === "unpaid"` (pagos asíncronos) no provisiona. Los fallos del webhook y los early-return permanentes (sin courseId, sin email, curso borrado) van a Sentry con tag `stripe-webhook`.
+Idempotencia: `Order` se crea con `create`; un P2002 = ya provisionado (no se repite el email). Enrollment y Subscription se upsertean siempre para curar provisiones a medias. `payment_status === "unpaid"` (pagos asíncronos) no provisiona. Los fallos del webhook y los early-return permanentes (sin courseId, sin email, curso borrado) se registran con `reportOps()` (incidencia + email al admin; ver «Monitorización propia»).
+
+## Monitorización propia (`/admin/salud`)
+
+Sistema de detección de fallos que **no depende de Sentry ni de Vercel** (creado oct-2026 tras un intento de pago fallido del que solo avisó un email de Sentry sin contexto útil). Tres piezas:
+
+1. **Incidencias** (`OpsEvent`, `src/lib/ops.ts`). `reportOps({ level, area, message, detail?, error? })` es el único punto de entrada y **nunca lanza**. Agrupa repeticiones (misma `area`+`message` en 24 h → `count++`), y las de nivel `ERROR` mandan **email** a `OPS_ALERT_EMAILS` (o `ADMIN_EMAIL` si no está definida) como mucho una vez cada 6 h por incidencia. Sentry recibe copia de los ERROR si está configurado, como sumidero secundario. Regla: `message` estable (sin ids), lo variable en `detail`. Ya instrumentado en: `/api/checkout`, `/checkout/success`, webhooks de Stripe y Mux, `stripe-provision.ts` (early-returns y email de bienvenida), `rate-limit.ts` (fail-open → WARN) y `instrumentation.ts` → `onRequestError` (cualquier error no controlado del servidor, área `server`).
+2. **Intentos de pago** (`CheckoutAttempt`). Cada POST a `/api/checkout` deja fila: `CREATED` con `stripeSessionId` si Stripe devolvió sesión, `FAILED` con el error si no. `provisionCheckoutSession` rellena `completedAt`. El funnel de `/admin/salud` separa "falló al iniciar" (bug/config nuestro, genera incidencia) de "sin terminar en Stripe" (abandono/tarjeta rechazada). Si falla la creación de sesión, el alumno vuelve a `/cursos/<slug>?pago=error` con un aviso visible, no a un 500.
+3. **Chequeos activos** (`src/lib/health.ts`, `runHealthChecks()`): van a cada proveedor y comprueban lo que de verdad hace falta para vender: DB, clave Stripe y modo live, endpoint de webhook de Stripe (URL **www** exacta, activo, con los 5 eventos requeridos), Stripe Tax activo, POST sin firma a `/api/webhooks/{stripe,mux}` devuelve 400 (un 3xx = apex, un 503 = falta secret), API de Mux + signing + webhook secret, vídeos atascados >2 h, bucket R2, dominio de `EMAIL_FROM` verificado en Resend, `PING` a Upstash, `CRON_SECRET`. Los ejecuta `/admin/salud` en cada carga y el cron `/api/cron/health` (diario 07:00 UTC en `vercel.json`): cada `fail` → incidencia ERROR (email), cada `warn` → WARN. El cron también purga incidencias resueltas >90 d e intentos >180 d.
+
+Para verificar el circuito de email: botón "Probar email de alerta" en `/admin/salud`. Para añadir un chequeo nuevo: una función `check*()` en `health.ts` y su `run(...)` en `runHealthChecks()`.
 
 ## Autorización
 
@@ -237,6 +247,10 @@ Los ISPs españoles bloquean rangos de IP compartidos de Cloudflare durante las 
 | `src/app/api/webhooks/mux/route.ts` | Receptor de eventos Mux |
 | `src/lib/mux-reconcile.ts` | Reconciliación upload→asset→playback contra la API de Mux (no depender del webhook) |
 | `src/app/api/cron/mux-reconcile/route.ts` | Cron diario (Vercel) que barre vídeos pendientes; auth por `CRON_SECRET` |
+| `src/lib/ops.ts` | Monitorización propia: `reportOps()` → `OpsEvent` + email de alerta (nunca lanza) |
+| `src/lib/health.ts` | Chequeos activos contra Stripe/Mux/R2/Resend/Upstash/DB (`runHealthChecks()`) |
+| `src/app/admin/salud/page.tsx` | Panel de salud: chequeos, funnel de pagos (`CheckoutAttempt`), incidencias |
+| `src/app/api/cron/health/route.ts` | Cron diario que ejecuta los chequeos y abre incidencias; auth por `CRON_SECRET` |
 | `vercel.json` | Definición de crons |
 | `src/app/api/checkout/route.ts` | Crear Checkout Session |
 | `src/proxy.ts` | Edge proxy: gating + CSP (Next 16; vivía como `middleware.ts`) |
@@ -245,7 +259,7 @@ Los ISPs españoles bloquean rangos de IP compartidos de Cloudflare durante las 
 ## Despliegue
 
 - **Vercel**: deploy automático desde `main`. PR → preview deploy con DB branch separada en Neon.
-- **Migraciones en build**: añadir `prisma migrate deploy && next build` como build command en Vercel.
+- **Migraciones en build**: el Build Command de Vercel es `pnpm exec prisma migrate deploy && pnpm run build` (verificado oct-2026), así que las migraciones commiteadas se aplican solas en cada deploy.
 - **Variables**: gestionadas en el dashboard de Vercel; sincronizadas con `vercel env pull` en local si hace falta.
 - **Scope de las env vars**: las credenciales de servicios externos con estado o cuota (Upstash, Mux, R2, Stripe) van **solo en Production**, no en Preview. Compartirlas haría que los preview deploys escriban en el recurso real (contadores de rate limit, assets de Mux, ficheros de R2) y consuman cuota. El código degrada limpio sin ellas (`is*Configured()` → `false`). Si algún día hace falta probar uno de estos servicios en un preview, usar un entorno/credencial aparte (p. ej. el entorno *Development* de Mux), nunca las claves de prod.
 - **Las env vars no se aplican retroactivamente**: tras añadir o cambiar una variable hay que **redeploy** para que entre en vigor.

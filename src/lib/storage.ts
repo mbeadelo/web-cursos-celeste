@@ -10,7 +10,11 @@
 
 import "server-only";
 import { S3Client } from "@aws-sdk/client-s3";
-import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  PutObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/lib/env";
 
@@ -174,4 +178,15 @@ function buildKey(prefix: string, filename: string): string {
   const ts = Date.now();
   const rand = Math.random().toString(36).slice(2, 8);
   return `${prefix}/${ts}-${rand}-${safe}${ext}`;
+}
+
+/**
+ * Comprobación de salud: credenciales y bucket válidos. Lista como mucho un
+ * objeto (sin descargar nada). Lanza si R2 no responde o rechaza la clave.
+ */
+export async function pingStorage(): Promise<void> {
+  const cfg = readConfig();
+  await getClient().send(
+    new ListObjectsV2Command({ Bucket: cfg.bucket, MaxKeys: 1 })
+  );
 }

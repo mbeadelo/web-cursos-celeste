@@ -76,6 +76,12 @@ export default async function AdminLayout({
               Legal
             </Link>
             <Link
+              href="/admin/salud"
+              className="text-neutral-600 hover:text-brand-celeste-deep transition"
+            >
+              Salud
+            </Link>
+            <Link
               href="/dashboard"
               className="text-neutral-500 hover:text-neutral-900 transition"
             >

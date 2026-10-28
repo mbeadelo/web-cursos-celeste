@@ -18,6 +18,10 @@ const schema = z.object({
   // Extra admins (optional, comma-separated). Only the seed reads this — it
   // upserts each as ADMIN. Lets us pin co-owner admins (e.g. Celeste) in code.
   ADMIN_EMAILS: z.string().optional(),
+  // Destinatarios de las alertas técnicas de /admin/salud (coma-separados).
+  // Si no se define, van solo a ADMIN_EMAIL. Pensado para que las alertas
+  // lleguen al técnico y no a la titular del negocio.
+  OPS_ALERT_EMAILS: z.string().optional(),
 
   // Stripe (Fase 3)
   STRIPE_SECRET_KEY: z.string().optional(),

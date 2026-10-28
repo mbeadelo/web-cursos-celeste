@@ -1,9 +1,9 @@
 import "server-only";
 import type Stripe from "stripe";
-import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/db";
 import { requireStripe } from "@/lib/stripe";
 import { sendPurchaseWelcomeEmail } from "@/lib/email";
+import { reportOps } from "@/lib/ops";
 
 /**
  * Provisión de una compra: User + Order + Enrollment (+ Subscription).
@@ -40,18 +40,22 @@ export async function provisionCheckoutSession(
 
   const courseId = session.metadata?.courseId;
   if (!courseId) {
-    Sentry.captureMessage(`${tag} sesión sin courseId en metadata`, {
-      level: "error",
-      extra: { sessionId: session.id },
+    await reportOps({
+      level: "ERROR",
+      area: "stripe-provision",
+      message: "Pago completado sin courseId en metadata: alumno pagado sin acceso",
+      detail: { source: opts.source, sessionId: session.id },
     });
     return { outcome: "skipped", reason: "sin courseId" };
   }
 
   const email = session.customer_details?.email?.toLowerCase();
   if (!email) {
-    Sentry.captureMessage(`${tag} sesión sin email`, {
-      level: "error",
-      extra: { sessionId: session.id, courseId },
+    await reportOps({
+      level: "ERROR",
+      area: "stripe-provision",
+      message: "Pago completado sin email: alumno pagado sin acceso",
+      detail: { source: opts.source, sessionId: session.id, courseId },
     });
     return { outcome: "skipped", reason: "sin email" };
   }
@@ -61,9 +65,11 @@ export async function provisionCheckoutSession(
     select: { id: true, title: true },
   });
   if (!course) {
-    Sentry.captureMessage(`${tag} curso no encontrado`, {
-      level: "error",
-      extra: { sessionId: session.id, courseId, email },
+    await reportOps({
+      level: "ERROR",
+      area: "stripe-provision",
+      message: "Pago completado de un curso que ya no existe: alumno pagado sin acceso",
+      detail: { source: opts.source, sessionId: session.id, courseId, email },
     });
     return { outcome: "skipped", reason: "curso no encontrado" };
   }
@@ -146,6 +152,16 @@ export async function provisionCheckoutSession(
     });
   }
 
+  // Cierra el intento de pago registrado por /api/checkout (funnel en
+  // /admin/salud). Best-effort: una sesión sin intento (p. ej. creada antes
+  // de existir la tabla) no es un error.
+  await db.checkoutAttempt
+    .updateMany({
+      where: { stripeSessionId: session.id, completedAt: null },
+      data: { completedAt: new Date(), email },
+    })
+    .catch(() => {});
+
   if (alreadyProvisioned) {
     return { outcome: "already", email };
   }
@@ -161,9 +177,12 @@ export async function provisionCheckoutSession(
       isNewUser,
     });
   } catch (err) {
-    console.error(`${tag} welcome email failed:`, err);
-    Sentry.captureException(err, {
-      extra: { sessionId: session.id, email, stage: "welcome-email" },
+    await reportOps({
+      level: "ERROR",
+      area: "email",
+      message: "No se pudo enviar el email de bienvenida tras una compra",
+      error: err,
+      detail: { source: opts.source, sessionId: session.id, email, courseId },
     });
   }
 

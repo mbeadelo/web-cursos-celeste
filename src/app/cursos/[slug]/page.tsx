@@ -79,10 +79,17 @@ export async function generateMetadata({
 
 export default async function CourseDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ pago?: string }>;
 }) {
   const { slug } = await params;
+  // /api/checkout redirige aquí con ?pago=error si Stripe falló al crear la
+  // sesión: el alumno ve un aviso claro en vez de un 500 y el admin ya tiene
+  // la incidencia en /admin/salud.
+  const { pago } = await searchParams;
+  const checkoutFailed = pago === "error";
 
   const course = await db.course.findUnique({
     where: { slug },
@@ -187,6 +194,26 @@ export default async function CourseDetailPage({
       <PublicHeader />
       <main className="flex-1 px-6 py-12 pb-28 md:pb-12">
         <div className="max-w-5xl mx-auto space-y-12">
+          {checkoutFailed && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-900 leading-relaxed"
+            >
+              <p className="font-semibold">No hemos podido iniciar el pago.</p>
+              <p className="mt-1">
+                Ha fallado la conexión con la pasarela de pago y ya hemos
+                avisado al equipo. Inténtalo de nuevo en unos minutos; si
+                sigue sin funcionar, escríbenos a{" "}
+                <a
+                  href="mailto:contacto@bienvenidoatuplaza.com"
+                  className="underline font-medium"
+                >
+                  contacto@bienvenidoatuplaza.com
+                </a>{" "}
+                y te lo resolvemos a mano.
+              </p>
+            </div>
+          )}
           <Link
             href={course.type === "PACK" ? "/packs" : "/cursos"}
             className="text-sm text-neutral-600 hover:text-brand-celeste-deep transition"

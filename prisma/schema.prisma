@@ -71,6 +71,21 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+// Monitorización propia (ver src/lib/ops.ts y /admin/salud).
+enum OpsLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+// Intento de pago: CREATED = Stripe devolvió sesión (el alumno fue a la
+// página de pago); FAILED = no se pudo ni crear la sesión. La compra
+// completada se marca con completedAt al provisionar.
+enum CheckoutAttemptStatus {
+  CREATED
+  FAILED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -125,12 +140,13 @@ model Course {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
-  lessons       Lesson[]
-  modules       Module[]
-  enrollments   Enrollment[]
-  orders        Order[]
-  reviews       Review[]
-  subscriptions Subscription[]
+  lessons          Lesson[]
+  modules          Module[]
+  enrollments      Enrollment[]
+  orders           Order[]
+  reviews          Review[]
+  subscriptions    Subscription[]
+  checkoutAttempts CheckoutAttempt[]
 }
 
 // Suscripción mensual de un alumno a una preparación. El ACCESO real sigue
@@ -367,4 +383,46 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ─── Monitorización propia ──────────────────────────────────────────────
+// Incidencias detectadas por la propia app (fallos de checkout, webhooks,
+// emails, chequeos de salud…). Se agrupan por `fingerprint` (area+mensaje)
+// dentro de una ventana de 24 h: la misma incidencia repetida incrementa
+// `count` en vez de crear filas. Las de nivel ERROR avisan por email al
+// admin (con throttle vía `notifiedAt`). Se cierran desde /admin/salud.
+model OpsEvent {
+  id          String    @id @default(cuid())
+  level       OpsLevel
+  area        String
+  message     String
+  fingerprint String
+  detail      Json?
+  count       Int       @default(1)
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  notifiedAt  DateTime?
+  resolvedAt  DateTime?
+
+  @@index([fingerprint, resolvedAt])
+  @@index([lastSeenAt])
+}
+
+// Registro de cada pulsación de "Comprar": permite ver intentos que nunca
+// llegaron a Order (abandono en Stripe o fallo al crear la sesión), cosa que
+// ni Stripe ni Sentry nos cuentan de forma fiable.
+model CheckoutAttempt {
+  id              String                @id @default(cuid())
+  courseId        String
+  course          Course                @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  email           String?
+  ip              String?
+  stripeSessionId String?               @unique
+  status          CheckoutAttemptStatus @default(CREATED)
+  error           String?
+  completedAt     DateTime?
+  createdAt       DateTime              @default(now())
+
+  @@index([createdAt])
+  @@index([courseId])
 }

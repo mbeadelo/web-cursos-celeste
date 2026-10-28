@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import { env } from "@/lib/env";
 import { checkoutIpLimiter, getClientIp } from "@/lib/rate-limit";
+import { reportOps, shortErrorMessage } from "@/lib/ops";
 
 export const runtime = "nodejs";
 
@@ -25,9 +26,21 @@ type CheckoutLineItem = NonNullable<CheckoutCreateParams["line_items"]>[number];
  * Creates a Stripe Checkout Session for the given course and 303-redirects
  * the browser to Stripe's hosted page. No login required — Stripe collects
  * the email and the webhook provisions the User after payment.
+ *
+ * Observabilidad propia: cada pulsación de "Comprar" deja una fila en
+ * `CheckoutAttempt` (CREATED con el id de sesión, o FAILED con el error) y
+ * cualquier excepción se registra con `reportOps` (email al admin) y devuelve
+ * al alumno a la landing con `?pago=error` en vez de un 500 mudo. Esto es lo
+ * que faltó el 21-oct-2026, cuando un alumno no pudo pagar y solo nos
+ * enteramos por un email de Sentry sin contexto.
  */
 export async function POST(req: Request) {
   if (!isStripeConfigured()) {
+    await reportOps({
+      level: "ERROR",
+      area: "checkout",
+      message: "Alguien pulsó Comprar pero Stripe no está configurado en este entorno",
+    });
     return badRequest("Stripe no está configurado en este entorno.");
   }
 
@@ -43,52 +56,153 @@ export async function POST(req: Request) {
     });
   }
 
-  const form = await req.formData();
-  const courseId = form.get("courseId");
-  if (typeof courseId !== "string" || courseId.length === 0) {
+  let courseId: string | null = null;
+  try {
+    const form = await req.formData();
+    const raw = form.get("courseId");
+    courseId = typeof raw === "string" && raw.length > 0 ? raw : null;
+  } catch {
+    courseId = null;
+  }
+  if (!courseId) {
     return badRequest("Falta courseId.");
   }
 
-  const course = await db.course.findUnique({
-    where: { id: courseId },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      description: true,
-      priceCents: true,
-      currency: true,
-      published: true,
-      coverUrl: true,
-      billing: true,
-      enrollmentFeeCents: true,
-    },
-  });
+  let course: CourseForCheckout | null = null;
+  try {
+    course = await db.course.findUnique({
+      where: { id: courseId },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        priceCents: true,
+        currency: true,
+        published: true,
+        coverUrl: true,
+        billing: true,
+        enrollmentFeeCents: true,
+      },
+    });
+  } catch (err) {
+    // La DB no responde: no podemos ni registrar el intento, pero el email
+    // de alerta no depende de la DB.
+    await reportOps({
+      level: "ERROR",
+      area: "checkout",
+      message: "No se pudo leer el curso de la base de datos al iniciar el pago",
+      error: err,
+      detail: { courseId, ip },
+    });
+    return NextResponse.redirect(`${SITE_URL}/cursos?pago=error`, 303);
+  }
   if (!course) return badRequest("Curso no encontrado.");
   if (!course.published) return badRequest("Curso no disponible.");
 
-  // If the user is already logged in and already enrolled, send them to the
-  // course directly instead of charging again.
-  const session = await auth();
-  if (session) {
-    const existing = await db.enrollment.findUnique({
-      where: {
-        userId_courseId: { userId: session.user.id, courseId: course.id },
-      },
-      select: { id: true },
-    });
-    if (existing) {
-      return NextResponse.redirect(
-        `${SITE_URL}/dashboard/cursos/${course.slug}`,
-        303
-      );
+  let userEmail: string | null = null;
+  try {
+    // If the user is already logged in and already enrolled, send them to the
+    // course directly instead of charging again.
+    const session = await auth();
+    if (session) {
+      userEmail = session.user.email ?? null;
+      const existing = await db.enrollment.findUnique({
+        where: {
+          userId_courseId: { userId: session.user.id, courseId: course.id },
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.redirect(
+          `${SITE_URL}/dashboard/cursos/${course.slug}`,
+          303
+        );
+      }
     }
-  }
 
+    const checkout = await createCheckoutSession(course, userEmail);
+
+    if (!checkout.url) {
+      throw new Error("Stripe devolvió una sesión sin URL");
+    }
+
+    await db.checkoutAttempt
+      .create({
+        data: {
+          courseId: course.id,
+          email: userEmail,
+          ip,
+          stripeSessionId: checkout.id,
+          status: "CREATED",
+        },
+      })
+      .catch((err) =>
+        console.error("[checkout] no se pudo registrar el intento:", err)
+      );
+
+    return NextResponse.redirect(checkout.url, 303);
+  } catch (err) {
+    await db.checkoutAttempt
+      .create({
+        data: {
+          courseId: course.id,
+          email: userEmail,
+          ip,
+          status: "FAILED",
+          error: shortErrorMessage(err),
+        },
+      })
+      .catch((e) =>
+        console.error("[checkout] no se pudo registrar el intento fallido:", e)
+      );
+
+    await reportOps({
+      level: "ERROR",
+      area: "checkout",
+      message: `No se pudo iniciar el pago del curso "${course.slug}"`,
+      error: err,
+      detail: {
+        courseId: course.id,
+        billing: course.billing,
+        priceCents: course.priceCents,
+        enrollmentFeeCents: course.enrollmentFeeCents,
+        userEmail,
+        ip,
+      },
+    });
+
+    return NextResponse.redirect(
+      `${SITE_URL}/cursos/${course.slug}?pago=error`,
+      303
+    );
+  }
+}
+
+type CourseForCheckout = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  priceCents: number;
+  currency: string;
+  published: boolean;
+  coverUrl: string | null;
+  billing: "ONE_TIME" | "SUBSCRIPTION";
+  enrollmentFeeCents: number | null;
+};
+
+async function createCheckoutSession(
+  course: CourseForCheckout,
+  userEmail: string | null
+) {
   const stripe = requireStripe();
 
   const isSubscription = course.billing === "SUBSCRIPTION";
   const currency = course.currency.toLowerCase();
+  // Stripe rechaza strings vacíos en product_data.description ("cannot be
+  // unset"); un curso sin descripción no debe tumbar el checkout.
+  const description = course.description.trim().slice(0, 500) || undefined;
 
   // El precio guardado (priceCents) es el que paga el alumno: IVA incluido.
   // "inclusive" hace que Stripe Tax desglose el IVA de ese total en vez de
@@ -105,7 +219,7 @@ export async function POST(req: Request) {
             recurring: { interval: "month" },
             product_data: {
               name: `${course.title} — cuota mensual`,
-              description: course.description.slice(0, 500),
+              description,
               images: course.coverUrl ? [course.coverUrl] : undefined,
             },
           },
@@ -138,14 +252,14 @@ export async function POST(req: Request) {
             tax_behavior: "inclusive",
             product_data: {
               name: course.title,
-              description: course.description.slice(0, 500),
+              description,
               images: course.coverUrl ? [course.coverUrl] : undefined,
             },
           },
         },
       ];
 
-  const checkout = await stripe.checkout.sessions.create({
+  return stripe.checkout.sessions.create({
     mode: isSubscription ? "subscription" : "payment",
     payment_method_types: ["card"],
     line_items: lineItems,
@@ -156,9 +270,8 @@ export async function POST(req: Request) {
       ? { subscription_data: { metadata: { courseId: course.id } } }
       : {}),
     // Pre-fill customer email if logged in. Otherwise Stripe asks for it.
-    customer_email: session?.user.email ?? undefined,
+    customer_email: userEmail ?? undefined,
     // Stripe Tax: requires Tax registration set up in the Stripe dashboard.
-    // Falls back to no-tax automatically if not enabled in the account.
     automatic_tax: { enabled: true },
     // Allow promo codes (admin can create them in Stripe dashboard later).
     allow_promotion_codes: true,
@@ -166,12 +279,6 @@ export async function POST(req: Request) {
     cancel_url: `${SITE_URL}/cursos/${course.slug}`,
     locale: "es",
   });
-
-  if (!checkout.url) {
-    return badRequest("No se pudo iniciar el checkout.");
-  }
-
-  return NextResponse.redirect(checkout.url, 303);
 }
 
 function badRequest(message: string) {

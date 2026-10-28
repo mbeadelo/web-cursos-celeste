@@ -2,6 +2,7 @@ import "server-only";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { env } from "@/lib/env";
+import { reportOps } from "@/lib/ops";
 
 /**
  * Rate limiting via Upstash Redis. Optional — if `UPSTASH_REDIS_REST_URL` /
@@ -61,7 +62,15 @@ function makeLimiter(prefix: string, tokens: number, window: string): Limiter {
         const res = await rl.limit(key);
         return { success: res.success, reset: res.reset };
       } catch (err) {
-        console.error(`[rate-limit] limiter "${prefix}" falló, fail-open:`, err);
+        // Queda en /admin/salud como aviso: un limiter caído de forma
+        // persistente suele significar base de Upstash archivada o
+        // credenciales rotas (incidente de sep-2026).
+        await reportOps({
+          level: "WARN",
+          area: "rate-limit",
+          message: `El limiter "${prefix}" falló (fail-open, petición permitida)`,
+          error: err,
+        });
         return { success: true, reset: 0 };
       }
     },

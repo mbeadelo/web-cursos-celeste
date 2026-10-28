@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
-import * as Sentry from "@sentry/nextjs";
 import { db } from "@/lib/db";
+import { reportOps } from "@/lib/ops";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import { env } from "@/lib/env";
 import {
@@ -48,6 +48,14 @@ export async function POST(req: Request) {
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : "invalid signature";
+    // Un bot aislado es ruido; una racha (count alto en /admin/salud) es
+    // STRIPE_WEBHOOK_SECRET desincronizado con el endpoint de Stripe.
+    await reportOps({
+      level: "WARN",
+      area: "stripe-webhook",
+      message: "Webhook de Stripe con firma inválida (¿secret desincronizado?)",
+      detail: { reason: msg },
+    });
     return new Response(`Webhook signature verification failed: ${msg}`, {
       status: 400,
     });
@@ -100,21 +108,23 @@ export async function POST(req: Request) {
     // so re-processing the same event is safe. Permanent failures (no course,
     // no email) early-return without throwing, so they don't reach here and
     // won't loop.
-    console.error(`[stripe webhook] error handling ${event.type}:`, err);
-    Sentry.captureException(err, {
-      tags: { area: "stripe-webhook", eventType: event.type },
-      extra: { eventId: event.id },
+    await reportOps({
+      level: "ERROR",
+      area: "stripe-webhook",
+      message: `Falló el procesado del evento ${event.type} (Stripe reintentará)`,
+      error: err,
+      detail: { eventId: event.id },
     });
-    await db.stripeEvent.delete({ where: { id: event.id } }).catch(() => {
-      // Even the rollback failed → the row stays and will block retries. Log
-      // so it can be replayed manually from the Stripe Dashboard.
-      console.error(
-        `[stripe webhook] could not roll back StripeEvent ${event.id}`
-      );
-      Sentry.captureMessage(
-        `[stripe webhook] StripeEvent ${event.id} (${event.type}) huérfano: bloqueará reintentos, reenviar a mano desde Stripe`,
-        { level: "fatal" }
-      );
+    await db.stripeEvent.delete({ where: { id: event.id } }).catch(async () => {
+      // Even the rollback failed → the row stays and will block retries.
+      // Alert so it can be replayed manually from the Stripe Dashboard.
+      await reportOps({
+        level: "ERROR",
+        area: "stripe-webhook",
+        message:
+          "StripeEvent huérfano: bloqueará los reintentos, reenviar a mano desde Stripe",
+        detail: { eventId: event.id, eventType: event.type },
+      });
     });
     return new Response("Webhook handler error", { status: 500 });
   }

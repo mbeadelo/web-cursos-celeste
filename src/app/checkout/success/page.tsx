@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import * as Sentry from "@sentry/nextjs";
 import { PublicHeader } from "@/components/public-header";
+import { reportOps } from "@/lib/ops";
 import { PublicFooter } from "@/components/public-footer";
 import { isStripeConfigured, requireStripe } from "@/lib/stripe";
 import { provisionCheckoutSession } from "@/lib/stripe-provision";
@@ -139,10 +139,13 @@ async function resolveAccess(sessionId: string | undefined): Promise<AccessState
   } catch (err) {
     // No romper la página de confirmación por un fallo de Stripe/DB: el
     // webhook sigue siendo la otra vía. Pero que quede registrado.
-    console.error("[checkout success] no se pudo resolver la sesión:", err);
-    Sentry.captureException(err, {
-      tags: { area: "checkout-success" },
-      extra: { sessionId },
+    await reportOps({
+      level: "ERROR",
+      area: "checkout",
+      message:
+        "La página de compra completada no pudo resolver la sesión de Stripe",
+      error: err,
+      detail: { sessionId },
     });
     return { kind: "unknown" };
   }
